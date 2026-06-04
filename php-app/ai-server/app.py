@@ -1,110 +1,135 @@
 import re
 import os
+import math
 import PyPDF2
 
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# =====================================
-# Known Skills Database
-# =====================================
-
 KNOWN_SKILLS = [
-    "python",
-    "java",
-    "php",
-    "html",
-    "css",
-    "javascript",
-    "mysql",
-    "sql",
-    "flask",
-    "django",
-    "laravel",
-    "react",
-    "node.js",
-    "bootstrap",
-    "ajax",
-    "machine learning",
-    "data analysis",
-    "excel",
-    "git",
-    "github",
-    "c++",
-    "c#"
+    "python", "java", "php", "html", "css", "javascript",
+    "mysql", "sql", "flask", "django", "laravel",
+    "react", "node.js", "bootstrap", "ajax",
+    "machine learning", "data analysis", "excel",
+    "git", "github", "c++", "c#"
 ]
-
-# =====================================
-# Resume Keywords
-# =====================================
 
 RESUME_KEYWORDS = [
-    "education",
-    "experience",
-    "skills",
-    "projects",
-    "certification",
-    "objective",
-    "summary",
-    "contact",
-    "email",
-    "phone",
-    "work experience"
+    "education", "experience", "skills", "projects",
+    "certification", "objective", "summary", "contact",
+    "email", "phone", "work experience"
 ]
 
-# =====================================
-# Home Route
-# =====================================
+
+def tokenize(text):
+    text = text.lower()
+    return re.findall(r"[a-zA-Z0-9+#.]+", text)
+
+
+def tfidf_cosine_similarity(user_text, job_texts):
+    documents = [user_text] + job_texts
+    tokenized_docs = [tokenize(doc) for doc in documents]
+
+    vocabulary = sorted(set(word for doc in tokenized_docs for word in doc))
+
+    if not vocabulary:
+        return [0 for _ in job_texts]
+
+    total_docs = len(tokenized_docs)
+
+    idf = {}
+
+    for word in vocabulary:
+        docs_with_word = sum(1 for doc in tokenized_docs if word in doc)
+        idf[word] = math.log((total_docs + 1) / (docs_with_word + 1)) + 1
+
+    vectors = []
+
+    for doc in tokenized_docs:
+        vector = []
+
+        for word in vocabulary:
+            term_count = doc.count(word)
+            total_terms = len(doc)
+
+            tf = term_count / total_terms if total_terms > 0 else 0
+            vector.append(tf * idf[word])
+
+        vectors.append(vector)
+
+    user_vector = vectors[0]
+    job_vectors = vectors[1:]
+
+    similarities = []
+
+    for job_vector in job_vectors:
+        dot_product = sum(a * b for a, b in zip(user_vector, job_vector))
+        user_norm = math.sqrt(sum(a * a for a in user_vector))
+        job_norm = math.sqrt(sum(b * b for b in job_vector))
+
+        if user_norm == 0 or job_norm == 0:
+            similarities.append(0)
+        else:
+            similarities.append(dot_product / (user_norm * job_norm))
+
+    return similarities
+
 
 @app.route("/")
 def home():
     return "AI Job Recommendation Flask Server Running"
 
-# =====================================
-# Job Recommendation Route
-# =====================================
 
 @app.route("/recommend", methods=["POST"])
 def recommend():
 
     data = request.get_json()
 
-    skills = data.get("skills", "").lower()
+    user_skills = data.get("skills", "")
     jobs = data.get("jobs", [])
 
-    user_skills = [
-        s.strip().lower()
-        for s in skills.split(",")
-        if s.strip()
-    ]
+    if not user_skills or len(jobs) == 0:
+        return jsonify([])
+
+    job_texts = []
+
+    for job in jobs:
+        job_text = (
+            job.get("title", "") + " " +
+            job.get("description", "") + " " +
+            job.get("required_skills", "")
+        )
+        job_texts.append(job_text)
+
+    similarity_scores = tfidf_cosine_similarity(user_skills, job_texts)
 
     recommendations = []
 
-    for job in jobs:
+    for index, job in enumerate(jobs):
 
-        required_skills = [
+        score = round(similarity_scores[index] * 100, 2)
+
+        user_skill_list = [
             s.strip().lower()
-            for s in job["required_skills"].split(",")
+            for s in user_skills.split(",")
             if s.strip()
         ]
 
-        matched = []
-        missing = []
+        required_skill_list = [
+            s.strip().lower()
+            for s in job.get("required_skills", "").split(",")
+            if s.strip()
+        ]
 
-        for skill in required_skills:
-            if skill in user_skills:
-                matched.append(skill)
-            else:
-                missing.append(skill)
-
-        if len(required_skills) > 0:
-            score = round((len(matched) / len(required_skills)) * 100, 2)
-        else:
-            score = 0
+        missing_skills = [
+            skill
+            for skill in required_skill_list
+            if skill not in user_skill_list
+        ]
 
         job["match_score"] = score
-        job["missing_skills"] = missing
+        job["missing_skills"] = missing_skills
 
         recommendations.append(job)
 
@@ -116,9 +141,6 @@ def recommend():
 
     return jsonify(recommendations)
 
-# =====================================
-# Resume Parsing + ATS Route
-# =====================================
 
 @app.route("/parse-resume", methods=["POST"])
 def parse_resume():
@@ -165,13 +187,15 @@ def parse_resume():
                 if page_text:
                     text += page_text + " "
 
-        if len(text.strip()) < 50:
+        if len(text.strip()) < 80:
             return jsonify({
                 "success": False,
-                "message": "Unable to extract enough text.",
+                "message": "This PDF is not accepted. Please upload a text-based resume PDF.",
                 "skills": [],
                 "ats_score": 0,
-                "suggestions": ["Use a text-based PDF instead of scanned image PDF."]
+                "suggestions": [
+                    "Use a proper text-based resume PDF, not a scanned image or unrelated PDF."
+                ]
             })
 
         text_lower = text.lower()
@@ -192,13 +216,15 @@ def parse_resume():
             text
         )
 
-        if keyword_count < 2 and not email_found:
+        if keyword_count < 3 or not email_found:
             return jsonify({
                 "success": False,
-                "message": "This PDF does not appear to be a resume.",
+                "message": "This PDF is not accepted. Please upload a valid resume containing Education, Skills, Experience and Email.",
                 "skills": [],
                 "ats_score": 0,
-                "suggestions": ["Upload a proper resume with education, skills, experience, email and phone."]
+                "suggestions": [
+                    "Upload a proper resume with Education, Skills, Experience and Email."
+                ]
             })
 
         found_skills = []
@@ -208,11 +234,6 @@ def parse_resume():
 
             if re.search(pattern, text_lower):
                 found_skills.append(skill.title())
-
-        # =====================================
-        # ATS Score Calculation
-        # Total = 100
-        # =====================================
 
         ats_score = 0
         suggestions = []
@@ -275,9 +296,6 @@ def parse_resume():
             "suggestions": []
         })
 
-# =====================================
-# Start Flask Server
-# =====================================
 
 if __name__ == "__main__":
     app.run(
