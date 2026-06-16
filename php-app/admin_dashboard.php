@@ -2,15 +2,21 @@
 session_start();
 include "db.php";
 
-if (!isset($_SESSION['admin']) && (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin')) {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: login.php");
     exit;
 }
 
-$result = mysqli_query($conn, "SELECT * FROM jobs ORDER BY job_id DESC");
+$search = $_GET['search'] ?? '';
+$search_query = "";
+if (!empty($search)) {
+    $s = mysqli_real_escape_string($conn, $search);
+    $search_query = " WHERE title LIKE '%$s%' OR company LIKE '%$s%' OR required_skills LIKE '%$s%' ";
+}
+
+$result = mysqli_query($conn, "SELECT * FROM jobs $search_query ORDER BY job_id DESC");
 $total_jobs = mysqli_num_rows($result);
 $admin_name = $_SESSION['name'] ?? "Admin";
-$admin_initial = strtoupper(substr($admin_name, 0, 1));
 ?>
 
 <!DOCTYPE html>
@@ -18,527 +24,143 @@ $admin_initial = strtoupper(substr($admin_name, 0, 1));
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | AI JobMatch</title>
-
+    <title>Admin Panel | CareerPilot AI</title>
+    <link rel="stylesheet" href="style.css">
     <style>
-        *{
-            margin:0;
-            padding:0;
-            box-sizing:border-box;
-            font-family:'Segoe UI',sans-serif;
+        .admin-table-card {
+            background: white;
+            border-radius: var(--r16);
+            padding: 0;
+            overflow: hidden;
+            box-shadow: var(--s1);
+            border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--bg2); padding: 16px; text-align: left; font-size: 0.8rem; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border); }
+        td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tr:last-child td { border-bottom: none; }
+        .action-links { display: flex; gap: 10px; }
+        
+        /* Ensure primary buttons are visible and white on blue */
+        .btn-primary-admin {
+            background: var(--blue);
+            color: #ffffff !important;
+            padding: 10px 24px;
+            border-radius: var(--r8);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            transition: 0.2s;
+        }
+        .btn-primary-admin:hover {
+            background: var(--blue-hover);
         }
 
-        body{
-            background:#f4f8ff;
-            color:#1e293b;
-        }
-
-        .topbar{
-            width:100%;
-            background:white;
-            padding:18px 40px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            flex-wrap:wrap;
-            box-shadow:0 4px 20px rgba(0,0,0,0.05);
-            border-bottom:1px solid #e5e7eb;
-            position:sticky;
-            top:0;
-            z-index:1000;
-        }
-
-        .topbar-left{
-            display:flex;
-            align-items:center;
-            gap:18px;
-        }
-
-        .logo-box{
-            width:60px;
-            height:60px;
-            border-radius:18px;
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-size:28px;
-            color:white;
-            box-shadow:0 8px 20px rgba(37,99,235,0.25);
-        }
-
-        .topbar-title{
-            font-size:30px;
-            color:#1e3a8a;
-            margin-bottom:4px;
-        }
-
-        .topbar-subtitle{
-            color:#64748b;
-            font-size:14px;
-        }
-
-        .admin-badge{
-            display:inline-block;
-            background:#dbeafe;
-            color:#1d4ed8;
-            padding:4px 10px;
-            border-radius:999px;
-            font-size:12px;
-            font-weight:700;
-            margin-left:8px;
-        }
-
-        .topbar-right{
-            display:flex;
-            align-items:center;
-            gap:18px;
-            flex-wrap:wrap;
-        }
-
-        .welcome-admin{
-            display:flex;
-            align-items:center;
-            gap:14px;
-            background:#f8fafc;
-            padding:10px 16px;
-            border-radius:16px;
-            border:1px solid #e2e8f0;
-        }
-
-        .admin-avatar{
-            width:50px;
-            height:50px;
-            border-radius:50%;
-            background:linear-gradient(135deg,#2563eb,#60a5fa);
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            color:white;
-            font-size:22px;
-            font-weight:bold;
-        }
-
-        .welcome-text{
-            color:#64748b;
-            font-size:13px;
-        }
-
-        .welcome-admin h4{
-            margin-top:3px;
-            font-size:17px;
-        }
-
-        .top-btn{
-            text-decoration:none;
-            padding:12px 20px;
-            border-radius:12px;
-            font-weight:600;
-            transition:0.3s;
-        }
-
-        .add-btn{
-            background:linear-gradient(90deg,#2563eb,#3b82f6);
-            color:white;
-        }
-
-        .add-btn:hover{
-            transform:translateY(-2px);
-            box-shadow:0 10px 20px rgba(37,99,235,0.25);
-        }
-
-        .logout-btn{
-            background:#ef4444;
-            color:white;
-        }
-
-        .logout-btn:hover{
-            background:#dc2626;
-            transform:translateY(-2px);
-        }
-
-        .container{
-            width:92%;
-            max-width:1250px;
-            margin:40px auto;
-        }
-
-        .page-header{
-            background:white;
-            border-radius:24px;
-            padding:35px;
-            margin-bottom:30px;
-            box-shadow:0 8px 25px rgba(0,0,0,0.05);
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:25px;
-            flex-wrap:wrap;
-        }
-
-        .page-header h1{
-            font-size:42px;
-            color:#1e3a8a;
-            margin-bottom:10px;
-        }
-
-        .page-header p{
-            color:#64748b;
-            font-size:16px;
-        }
-
-        .stat-box{
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            color:white;
-            padding:22px 32px;
-            border-radius:20px;
-            text-align:center;
-            min-width:170px;
-            box-shadow:0 10px 25px rgba(37,99,235,0.25);
-        }
-
-        .stat-box h2{
-            font-size:38px;
-            margin-bottom:4px;
-        }
-
-        .stat-box span{
-            color:#dbeafe;
-            font-size:14px;
-        }
-
-        .table-card{
-            background:white;
-            border-radius:24px;
-            overflow:hidden;
-            box-shadow:0 10px 30px rgba(0,0,0,0.06);
-            border:1px solid #e2e8f0;
-        }
-
-        .table-top{
-            padding:22px 26px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            border-bottom:1px solid #e2e8f0;
-            flex-wrap:wrap;
-            gap:15px;
-        }
-
-        .table-top h2{
-            color:#1e3a8a;
-            font-size:24px;
-        }
-
-        .table-top p{
-            color:#64748b;
-            font-size:14px;
-        }
-
-        .table-wrap{
-            overflow-x:auto;
-        }
-
-        table{
-            width:100%;
-            border-collapse:collapse;
-            min-width:950px;
-        }
-
-        thead{
-            background:#1e3a8a;
-            color:white;
-        }
-
-        th{
-            padding:16px;
-            text-align:left;
-            font-size:14px;
-            white-space:nowrap;
-        }
-
-        td{
-            padding:16px;
-            border-bottom:1px solid #e2e8f0;
-            color:#334155;
-            vertical-align:top;
-        }
-
-        tbody tr{
-            transition:0.2s;
-        }
-
-        tbody tr:hover{
-            background:#f8fafc;
-        }
-
-        .job-title{
-            color:#1e3a8a;
-            font-weight:700;
-            font-size:16px;
-        }
-
-        .skill-pill{
-            display:inline-block;
-            background:#eff6ff;
-            color:#1d4ed8;
-            padding:6px 10px;
-            border-radius:999px;
-            font-size:13px;
-            margin:2px;
-        }
-
-        .salary-pill{
-            background:#dcfce7;
-            color:#15803d;
-            padding:8px 12px;
-            border-radius:999px;
-            font-weight:700;
-            white-space:nowrap;
-            display:inline-block;
-        }
-
-        .action-box{
-            display:flex;
-            gap:8px;
-            flex-wrap:wrap;
-        }
-
-        .action-btn{
-            text-decoration:none;
-            padding:9px 13px;
-            border-radius:10px;
-            font-size:13px;
-            font-weight:700;
-            transition:0.2s;
-            display:inline-block;
-        }
-
-        .edit-btn{
-            background:#dbeafe;
-            color:#1d4ed8;
-        }
-
-        .edit-btn:hover{
-            background:#bfdbfe;
-        }
-
-        .delete-btn{
-            background:#fee2e2;
-            color:#dc2626;
-        }
-
-        .delete-btn:hover{
-            background:#fecaca;
-        }
-
-        .empty-row{
-            text-align:center;
-            padding:40px;
-            color:#64748b;
-        }
-
-        @media(max-width:900px){
-            .topbar{
-                flex-direction:column;
-                gap:20px;
-                padding:20px;
-            }
-
-            .topbar-left{
-                width:100%;
-                justify-content:center;
-                flex-direction:column;
-                text-align:center;
-            }
-
-            .topbar-right{
-                width:100%;
-                justify-content:center;
-            }
-
-            .page-header{
-                text-align:center;
-                justify-content:center;
-            }
-
-            .page-header h1{
-                font-size:34px;
-            }
+        .admin-search-area {
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
         }
     </style>
-
 </head>
-<body>
+<body class="app-page">
 
-<div class="topbar">
+    <div class="app-layout">
+        
+        <?php include "admin_sidebar.php"; ?>
 
-    <div class="topbar-left">
+        <main class="app-main">
+            <div class="dash-content">
+                
+                <div class="welcome-banner" style="background: var(--dark); color: white;">
+                    <div class="wb-left">
+                        <h2 style="color: white;">Admin Control Center</h2>
+                        <p style="opacity: 0.8; font-size: 0.9rem;">Manage job listings, monitor applications, and oversee platform growth.</p>
+                    </div>
+                    <div class="wb-stats">
+                        <div class="wb-stat">
+                            <div class="wb-stat-val" style="color: white;"><?php echo $total_jobs; ?></div>
+                            <div class="wb-stat-label" style="color: rgba(255,255,255,0.6);">Total Jobs</div>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="logo-box">
-            🛠
-        </div>
+                <div class="section-head">
+                    <h3>Active Job Listings</h3>
+                    <a href="admin_add_job.php" class="btn-primary-admin">+ Post New Job</a>
+                </div>
 
-        <div>
-            <h2 class="topbar-title">
-                AI JobMatch
-                <span class="admin-badge">Admin</span>
-            </h2>
+                <form method="GET" class="admin-search-area">
+                    <div class="input-wrap" style="flex: 1; margin-bottom: 0;">
+                        <span class="iicon"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                        <input type="text" name="search" placeholder="Search by title, company or skills..." value="<?php echo htmlspecialchars($search); ?>">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: auto; padding: 0 25px; height: 46px;">Search</button>
+                    <?php if(!empty($search)): ?>
+                        <a href="admin_dashboard.php" class="btn-outline" style="height: 46px; display: flex; align-items: center; padding: 0 20px;">Clear</a>
+                    <?php endif; ?>
+                </form>
 
-            <p class="topbar-subtitle">
-                Manage job listings and opportunities
-            </p>
-        </div>
+                <?php if (isset($_SESSION['admin_msg'])): ?>
+                    <div class="alert alert-success">
+                        <?php 
+                            echo $_SESSION['admin_msg']; 
+                            unset($_SESSION['admin_msg']);
+                        ?>
+                    </div>
+                <?php endif; ?>
 
-    </div>
-
-    <div class="topbar-right">
-
-        <div class="welcome-admin">
-            <div class="admin-avatar">
-                <?php echo $admin_initial; ?>
-            </div>
-
-            <div>
-                <p class="welcome-text">Welcome</p>
-                <h4><?php echo htmlspecialchars($admin_name); ?></h4>
-            </div>
-        </div>
-
-        <a href="add_job.php" class="top-btn add-btn">
-            + Add New Job
-        </a>
-
-        <a href="logout.php" class="top-btn logout-btn">
-             Logout
-        </a>
-
-    </div>
-
-</div>
-
-<div class="container">
-
-    <div class="page-header">
-
-        <div>
-            <h1>Job Listings</h1>
-            <p>View, edit and delete all posted jobs from here.</p>
-        </div>
-
-        <div class="stat-box">
-            <h2><?php echo $total_jobs; ?></h2>
-            <span>Total Jobs</span>
-        </div>
-
-    </div>
-
-    <div class="table-card">
-
-        <div class="table-top">
-            <div>
-                <h2>All Posted Jobs</h2>
-                <p>Admin can manage job records below.</p>
-            </div>
-
-            <a href="add_job.php" class="top-btn add-btn">
-                + Add Job
-            </a>
-        </div>
-
-        <div class="table-wrap">
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Job Title</th>
-                        <th>Company</th>
-                        <th>Required Skills</th>
-                        <th>Location</th>
-                        <th>Salary</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    <?php if ($total_jobs > 0) { ?>
-
-                        <?php while ($row = mysqli_fetch_assoc($result)) { ?>
-
+                <div class="admin-table-card">
+                    <table>
+                        <thead>
                             <tr>
-                                <td>
-                                    <span class="job-title">
-                                        <?php echo htmlspecialchars($row['title']); ?>
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <?php echo htmlspecialchars($row['company']); ?>
-                                </td>
-
-                                <td>
-                                    <?php
-                                        $skills = explode(",", $row['required_skills']);
-
-                                        foreach ($skills as $skill) {
-                                            echo "<span class='skill-pill'>" . htmlspecialchars(trim($skill)) . "</span>";
-                                        }
-                                    ?>
-                                </td>
-
-                                <td>
-                                     <?php echo htmlspecialchars($row['location']); ?>
-                                </td>
-
-                                <td>
-                                    <span class="salary-pill">
-                                        Rs. <?php echo htmlspecialchars($row['salary']); ?>
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <div class="action-box">
-
-                                        <a 
-                                            href="edit_job.php?job_id=<?php echo $row['job_id']; ?>" 
-                                            class="action-btn edit-btn"
-                                        >
-                                             Edit
-                                        </a>
-
-                                        <a 
-                                            href="delete_job.php?job_id=<?php echo $row['job_id']; ?>" 
-                                            class="action-btn delete-btn"
-                                            onclick="return confirm('Are you sure you want to delete this job?');"
-                                        >
-                                            Delete
-                                        </a>
-
-                                    </div>
-                                </td>
+                                <th>Job Title</th>
+                                <th>Company/Source</th>
+                                <th>Location</th>
+                                <th>Salary</th>
+                                <th>Actions</th>
                             </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($total_jobs > 0) { ?>
+                                <?php while ($row = mysqli_fetch_assoc($result)) { ?>
+                                    <tr>
+                                        <td>
+                                            <div style="font-weight: 600; color: var(--text);"><?php echo htmlspecialchars($row['title']); ?></div>
+                                            <div style="font-size: 0.75rem; color: var(--text4);"><?php echo htmlspecialchars($row['required_skills']); ?></div>
+                                        </td>
+                                        <td>
+                                            <?php echo htmlspecialchars($row['company']); ?>
+                                            <?php if(isset($row['is_external']) && $row['is_external']): ?>
+                                                <span style="font-size: 0.6rem; background: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 4px;">Scraped</span>
+                                            <?php else: ?>
+                                                <span style="font-size: 0.6rem; background: #f0fdf4; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 4px;">Internal</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row['location']); ?></td>
+                                        <td>Rs. <?php echo htmlspecialchars($row['salary']); ?></td>
+                                        <td>
+                                            <div class="action-links">
+                                                <a href="edit_job.php?job_id=<?php echo $row['job_id']; ?>" class="btn-sm btn-sm-outline" style="text-decoration:none;">Edit</a>
+                                                <a href="delete_job.php?job_id=<?php echo $row['job_id']; ?>" class="btn-sm" style="background:#fee2e2; color:#dc2626; text-decoration:none;" onclick="return confirm('Delete this job?');">Delete</a>
+                                                <a href="admin_applications.php?job_id=<?php echo $row['job_id']; ?>">View Applications</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php } ?>
+                            <?php } else { ?>
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--text4);">No jobs found. <?php echo !empty($search) ? "Try a different search term." : "Start by adding one."; ?></td>
+                                </tr>
+                            <?php } ?>
+                        </tbody>
+                    </table>
+                </div>
 
-                        <?php } ?>
-
-                    <?php } else { ?>
-
-                        <tr>
-                            <td colspan="6" class="empty-row">
-                                No jobs found. Click Add Job to create one.
-                            </td>
-                        </tr>
-
-                    <?php } ?>
-
-                </tbody>
-            </table>
-
-        </div>
-
+            </div>
+        </main>
     </div>
-
-</div>
 
 </body>
 </html>

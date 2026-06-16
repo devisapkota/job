@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-if ($_SESSION['role'] == 'admin') {
+if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin') {
     header("Location: admin_dashboard.php");
     exit;
 }
@@ -19,558 +19,495 @@ $query = "
         applications.application_id,
         applications.status,
         applications.applied_at,
+        applications.match_score,
         jobs.title,
         jobs.company,
         jobs.location,
         jobs.salary,
         jobs.required_skills,
-        jobs.description
+        jobs.description,
+        resumes.file_name,
+        resumes.file_path,
+        resumes.extracted_skills
     FROM applications
     INNER JOIN jobs ON applications.job_id = jobs.job_id
+    LEFT JOIN resumes ON applications.resume_id = resumes.resume_id
     WHERE applications.user_id = '$user_id'
     ORDER BY applications.applied_at DESC
 ";
 
 $result = mysqli_query($conn, $query);
 $total_applications = mysqli_num_rows($result);
-$user_initial = strtoupper(substr($_SESSION['name'], 0, 1));
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Applications | AI JobMatch</title>
+<meta charset="UTF-8">
+<title>My Applications | CareerPilot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        *{
-            margin:0;
-            padding:0;
-            box-sizing:border-box;
-            font-family:'Segoe UI',sans-serif;
-        }
+<link rel="stylesheet" href="style.css">
 
-        body{
-            background:#f4f8ff;
-            color:#1e293b;
-        }
+<style>
+* {
+    box-sizing: border-box;
+}
 
-        .topbar{
-            width:100%;
-            background:white;
-            padding:18px 40px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            flex-wrap:wrap;
-            box-shadow:0 4px 20px rgba(0,0,0,0.05);
-            border-bottom:1px solid #e5e7eb;
-            position:sticky;
-            top:0;
-            z-index:1000;
-        }
+body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #f4f8ff;
+    color: #1e293b;
+}
 
-        .topbar-left{
-            display:flex;
-            align-items:center;
-            gap:18px;
-        }
+.app-main {
+    padding: 30px;
+}
 
-        .logo-box{
-            width:60px;
-            height:60px;
-            border-radius:18px;
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-size:28px;
-            color:white;
-            box-shadow:0 8px 20px rgba(37,99,235,0.25);
-        }
+/* Page Header */
+.page-header {
+    background: white;
+    padding: 28px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+    margin-bottom: 20px;
+}
 
-        .topbar-title{
-            font-size:30px;
-            color:#1e3a8a;
-            margin-bottom:4px;
-        }
+.page-header h2 {
+    margin: 0;
+    color: #1e3a8a;
+    font-size: 28px;
+}
 
-        .topbar-subtitle{
-            color:#64748b;
-            font-size:14px;
-        }
+.page-header p {
+    color: #64748b;
+    margin-bottom: 0;
+}
 
-        .topbar-right{
-            display:flex;
-            align-items:center;
-            gap:18px;
-            flex-wrap:wrap;
-        }
+/* Notification Alerts */
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 15px 18px;
+    border-radius: 14px;
+    margin-bottom: 22px;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 8px 20px rgba(0,0,0,.06);
+    animation: slideDown .35s ease;
+    position: relative;
+}
 
-        .welcome-user{
-            display:flex;
-            align-items:center;
-            gap:14px;
-            background:#f8fafc;
-            padding:10px 16px;
-            border-radius:16px;
-            border:1px solid #e2e8f0;
-        }
+.alert-success {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
 
-        .user-avatar{
-            width:50px;
-            height:50px;
-            border-radius:50%;
-            background:linear-gradient(135deg,#2563eb,#60a5fa);
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            color:white;
-            font-size:22px;
-            font-weight:bold;
-        }
+.alert-warning {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
 
-        .welcome-text{
-            color:#64748b;
-            font-size:13px;
-        }
+.alert-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
 
-        .welcome-user h4{
-            margin-top:3px;
-            font-size:17px;
-        }
+.alert-icon {
+    font-size: 18px;
+}
 
-        .top-btn{
-            text-decoration:none;
-            padding:12px 20px;
-            border-radius:12px;
-            font-weight:600;
-            transition:0.3s;
-        }
+.alert-message {
+    line-height: 1.5;
+}
 
-        .jobs-btn{
-            background:#eff6ff;
-            color:#2563eb;
-        }
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-        .jobs-btn:hover{
-            background:#dbeafe;
-            transform:translateY(-2px);
-        }
+.fade-out {
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: all .4s ease;
+}
 
-        .logout-btn{
-            background:#ef4444;
-            color:white;
-        }
+/* Application Card */
+.app-card {
+    background: white;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+    margin-bottom: 20px;
+    border: 1px solid #e5e7eb;
+}
 
-        .logout-btn:hover{
-            background:#dc2626;
-            transform:translateY(-2px);
-        }
+.app-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 12px;
+}
 
-        .container{
-            width:90%;
-            max-width:1200px;
-            margin:40px auto;
-        }
+.app-top h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
+}
 
-        .page-header{
-            background:white;
-            border-radius:24px;
-            padding:35px;
-            margin-bottom:35px;
-            box-shadow:0 8px 25px rgba(0,0,0,0.05);
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:25px;
-            flex-wrap:wrap;
-        }
+.company {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 5px;
+}
 
-        .page-header h1{
-            font-size:42px;
-            color:#1e3a8a;
-            margin-bottom:10px;
-        }
+/* Status Badges */
+.status {
+    padding: 7px 14px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 
-        .page-header p{
-            color:#64748b;
-            font-size:16px;
-        }
+.status-applied {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
 
-        .stat-box{
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            color:white;
-            padding:22px 28px;
-            border-radius:20px;
-            text-align:center;
-            min-width:170px;
-            box-shadow:0 10px 25px rgba(37,99,235,0.25);
-        }
+.status-under-review {
+    background: #fef3c7;
+    color: #92400e;
+}
 
-        .stat-box h2{
-            font-size:38px;
-            margin-bottom:4px;
-        }
+.status-shortlisted {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
 
-        .stat-box span{
-            font-size:14px;
-            color:#dbeafe;
-        }
+.status-interview-scheduled {
+    background: #ede9fe;
+    color: #6d28d9;
+}
 
-        .application-list{
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(350px,1fr));
-            gap:25px;
-        }
+.status-selected {
+    background: #dcfce7;
+    color: #166534;
+}
 
-        .application-card{
-            background:white;
-            border-radius:22px;
-            padding:26px;
-            box-shadow:0 8px 25px rgba(0,0,0,0.06);
-            border:1px solid #e2e8f0;
-            transition:0.3s;
-            position:relative;
-            overflow:hidden;
-        }
+.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
 
-        .application-card:hover{
-            transform:translateY(-6px);
-            box-shadow:0 15px 35px rgba(37,99,235,0.15);
-        }
+/* Description */
+.desc {
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-top: 12px;
+}
 
-        .application-card::before{
-            content:"";
-            position:absolute;
-            top:0;
-            left:0;
-            width:100%;
-            height:5px;
-            background:linear-gradient(90deg,#16a34a,#22c55e);
-        }
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 18px 0;
+}
 
-        .application-header{
-            display:flex;
-            justify-content:space-between;
-            align-items:flex-start;
-            gap:20px;
-            margin-bottom:18px;
-        }
+.info-box {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px;
+}
 
-        .application-header h2{
-            color:#1e3a8a;
-            margin-bottom:6px;
-            font-size:27px;
-        }
+.info-box b {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
 
-        .company{
-            color:#64748b;
-            font-size:15px;
-        }
+.info-box span,
+.info-box a {
+    color: #111827;
+    font-size: 14px;
+    text-decoration: none;
+    word-break: break-word;
+}
 
-        .status-badge{
-            padding:10px 16px;
-            border-radius:999px;
-            font-weight:700;
-            white-space:nowrap;
-            font-size:14px;
-        }
+.info-box a:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
 
-        .status-applied{
-            background:#dbeafe;
-            color:#1d4ed8;
-        }
+.match-score {
+    font-weight: 800;
+    color: #2563eb !important;
+}
 
-        .status-reviewed{
-            background:#fef3c7;
-            color:#92400e;
-        }
+/* Date */
+.date {
+    color: #64748b;
+    font-size: 13px;
+    margin-top: 16px;
+}
 
-        .status-selected{
-            background:#dcfce7;
-            color:#15803d;
-        }
+/* Empty State */
+.empty-box {
+    background: white;
+    text-align: center;
+    padding: 70px 25px;
+    border-radius: 20px;
+    border: 1px dashed #cbd5e1;
+    box-shadow: 0 8px 25px rgba(0,0,0,.04);
+}
 
-        .status-rejected{
-            background:#fee2e2;
-            color:#b91c1c;
-        }
+.empty-box h3 {
+    color: #1e3a8a;
+    margin-bottom: 8px;
+}
 
-        .job-meta{
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            margin:18px 0;
-        }
+.empty-box p {
+    color: #64748b;
+}
 
-        .job-meta-item{
-            background:#f8fafc;
-            border:1px solid #e2e8f0;
-            color:#334155;
-            padding:9px 12px;
-            border-radius:12px;
-            font-size:14px;
-        }
+.btn-primary {
+    display: inline-block;
+    background: #2563eb;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    margin-top: 14px;
+}
 
-        .job-desc{
-            color:#334155;
-            line-height:1.7;
-            margin:18px 0;
-        }
+.btn-primary:hover {
+    background: #1d4ed8;
+}
 
-        .applied-date{
-            color:#64748b;
-            font-size:14px;
-            margin-top:18px;
-            padding-top:16px;
-            border-top:1px solid #e2e8f0;
-        }
+/* Responsive */
+@media (max-width: 768px) {
+    .app-main {
+        padding: 18px;
+    }
 
-        .empty-box{
-            background:white;
-            padding:60px 30px;
-            text-align:center;
-            border-radius:24px;
-            box-shadow:0 8px 25px rgba(0,0,0,0.05);
-        }
+    .page-header {
+        padding: 22px;
+    }
 
-        .empty-icon{
-            width:90px;
-            height:90px;
-            background:#eff6ff;
-            color:#2563eb;
-            border-radius:50%;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-size:42px;
-            margin:0 auto 22px;
-        }
+    .page-header h2 {
+        font-size: 24px;
+    }
 
-        .empty-box h3{
-            color:#1e3a8a;
-            font-size:30px;
-            margin-bottom:10px;
-        }
+    .app-top {
+        flex-direction: column;
+    }
 
-        .empty-box p{
-            color:#64748b;
-            margin-bottom:25px;
-        }
+    .status {
+        align-self: flex-start;
+    }
 
-        .browse-btn{
-            display:inline-block;
-            background:linear-gradient(90deg,#2563eb,#3b82f6);
-            color:white;
-            text-decoration:none;
-            padding:13px 26px;
-            border-radius:12px;
-            font-weight:600;
-            transition:0.3s;
-        }
-
-        .browse-btn:hover{
-            transform:translateY(-2px);
-            box-shadow:0 10px 20px rgba(37,99,235,0.25);
-        }
-
-        @media(max-width:900px){
-            .topbar{
-                flex-direction:column;
-                gap:20px;
-                padding:20px;
-            }
-
-            .topbar-left{
-                width:100%;
-                justify-content:center;
-                flex-direction:column;
-                text-align:center;
-            }
-
-            .topbar-right{
-                width:100%;
-                justify-content:center;
-            }
-
-            .page-header{
-                text-align:center;
-                justify-content:center;
-            }
-
-            .page-header h1{
-                font-size:34px;
-            }
-
-            .application-header{
-                flex-direction:column;
-            }
-        }
-    </style>
-
+    .app-card {
+        padding: 20px;
+    }
+}
+</style>
 </head>
-<body>
 
-<div class="topbar">
+<body class="app-page">
 
-    <div class="topbar-left">
+<div class="app-layout">
 
-        <div class="logo-box">
-            
-        </div>
+<?php include "sidebar.php"; ?>
 
-        <div>
-            <h2 class="topbar-title">
-                My Applications
-            </h2>
-
-            <p class="topbar-subtitle">
-                Track all your job applications
-            </p>
-        </div>
-
-    </div>
-
-    <div class="topbar-right">
-
-        <div class="welcome-user">
-
-            <div class="user-avatar">
-                <?php echo $user_initial; ?>
-            </div>
-
-            <div>
-                <p class="welcome-text">Welcome</p>
-
-                <h4>
-                    <?php echo htmlspecialchars($_SESSION['name']); ?>
-                </h4>
-            </div>
-
-        </div>
-
-        <a href="user_dashboard.php" class="top-btn jobs-btn">
-             Available Jobs
-        </a>
-
-        <a href="logout.php" class="top-btn logout-btn">
-             Logout
-        </a>
-
-    </div>
-
-</div>
-
-<div class="container">
+<main class="app-main">
 
     <div class="page-header">
-
-        <div>
-            <h1>My Applications</h1>
-            <p>Here you can see all jobs you have applied for.</p>
-        </div>
-
-        <div class="stat-box">
-            <h2><?php echo $total_applications; ?></h2>
-            <span>Total Applications</span>
-        </div>
-
+        <h2>Application Tracker</h2>
+        <p>You have <b><?php echo $total_applications; ?></b> active applications.</p>
     </div>
+
+    <!-- SUCCESS / WARNING / ERROR NOTIFICATION -->
+    <?php if (isset($_SESSION['success_message'])) { ?>
+        <div class="alert alert-success" id="flashAlert">
+            <div class="alert-icon">✅</div>
+            <div class="alert-message">
+                <?php echo htmlspecialchars($_SESSION['success_message']); ?>
+            </div>
+        </div>
+        <?php unset($_SESSION['success_message']); ?>
+    <?php } ?>
+
+    <?php if (isset($_SESSION['warning_message'])) { ?>
+        <div class="alert alert-warning" id="flashAlert">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-message">
+                <?php echo htmlspecialchars($_SESSION['warning_message']); ?>
+            </div>
+        </div>
+        <?php unset($_SESSION['warning_message']); ?>
+    <?php } ?>
+
+    <?php if (isset($_SESSION['error_message'])) { ?>
+        <div class="alert alert-error" id="flashAlert">
+            <div class="alert-icon">❌</div>
+            <div class="alert-message">
+                <?php echo htmlspecialchars($_SESSION['error_message']); ?>
+            </div>
+        </div>
+        <?php unset($_SESSION['error_message']); ?>
+    <?php } ?>
 
     <?php if ($total_applications > 0) { ?>
 
-        <div class="application-list">
+        <?php while ($row = mysqli_fetch_assoc($result)) { 
+            $status = !empty($row['status']) ? $row['status'] : 'Applied';
+            $status_class = "status-" . strtolower(str_replace(" ", "-", $status));
+        ?>
 
-            <?php while ($row = mysqli_fetch_assoc($result)) { ?>
+        <div class="app-card">
 
-                <?php
-                    $status_class = "status-applied";
-
-                    if ($row['status'] == "Reviewed") {
-                        $status_class = "status-reviewed";
-                    } elseif ($row['status'] == "Selected") {
-                        $status_class = "status-selected";
-                    } elseif ($row['status'] == "Rejected") {
-                        $status_class = "status-rejected";
-                    }
-                ?>
-
-                <div class="application-card">
-
-                    <div class="application-header">
-
-                        <div>
-                            <h2>
-                                <?php echo htmlspecialchars($row['title']); ?>
-                            </h2>
-
-                            <p class="company">
-                                <?php echo htmlspecialchars($row['company']); ?>
-                            </p>
-                        </div>
-
-                        <span class="status-badge <?php echo $status_class; ?>">
-                            <?php echo htmlspecialchars($row['status']); ?>
-                        </span>
-
+            <div class="app-top">
+                <div>
+                    <h3><?php echo htmlspecialchars($row['title']); ?></h3>
+                    <div class="company">
+                        <?php echo htmlspecialchars($row['company']); ?> • 
+                        <?php echo htmlspecialchars($row['location']); ?>
                     </div>
-
-                    <div class="job-meta">
-
-                        <span class="job-meta-item">
-                             <?php echo htmlspecialchars($row['location']); ?>
-                        </span>
-
-                        <span class="job-meta-item">
-                             Rs. <?php echo htmlspecialchars($row['salary']); ?>
-                        </span>
-
-                        <span class="job-meta-item">
-                            🛠 <?php echo htmlspecialchars($row['required_skills']); ?>
-                        </span>
-
-                    </div>
-
-                    <p class="job-desc">
-                        <?php echo htmlspecialchars($row['description']); ?>
-                    </p>
-
-                    <p class="applied-date">
-                         Applied on:
-                        <?php echo date("d M Y, h:i A", strtotime($row['applied_at'])); ?>
-                    </p>
-
                 </div>
 
-            <?php } ?>
+                <span class="status <?php echo htmlspecialchars($status_class); ?>">
+                    <?php echo htmlspecialchars($status); ?>
+                </span>
+            </div>
+
+            <div class="desc">
+                <?php 
+                if (!empty($row['description'])) {
+                    echo htmlspecialchars(substr($row['description'], 0, 220)) . "...";
+                } else {
+                    echo "No description available.";
+                }
+                ?>
+            </div>
+
+            <div class="info-grid">
+
+                <div class="info-box">
+                    <b>Salary</b>
+                    <span>
+                        <?php 
+                        if (empty($row['salary']) || $row['salary'] == 0 || $row['salary'] == "0.00") {
+                            echo "Negotiable / Not Disclosed";
+                        } else {
+                            echo "Rs. " . htmlspecialchars($row['salary']);
+                        }
+                        ?>
+                    </span>
+                </div>
+
+                <div class="info-box">
+                    <b>Match Score</b>
+                    <span class="match-score">
+                        <?php echo htmlspecialchars($row['match_score'] ?? 0); ?>%
+                    </span>
+                </div>
+
+                <div class="info-box">
+                    <b>Resume Used</b>
+                    <span>
+                        <?php if (!empty($row['file_path'])) { ?>
+                            <a href="<?php echo htmlspecialchars($row['file_path']); ?>" target="_blank">
+                                <?php echo htmlspecialchars($row['file_name']); ?>
+                            </a>
+                        <?php } else { ?>
+                            No resume attached
+                        <?php } ?>
+                    </span>
+                </div>
+
+                <div class="info-box">
+                    <b>Extracted Skills</b>
+                    <span>
+                        <?php 
+                        if (!empty($row['extracted_skills'])) {
+                            echo htmlspecialchars($row['extracted_skills']);
+                        } else {
+                            echo "Not available";
+                        }
+                        ?>
+                    </span>
+                </div>
+
+                <div class="info-box">
+                    <b>Required Skills</b>
+                    <span>
+                        <?php 
+                        if (!empty($row['required_skills'])) {
+                            echo htmlspecialchars($row['required_skills']);
+                        } else {
+                            echo "Not specified";
+                        }
+                        ?>
+                    </span>
+                </div>
+
+            </div>
+
+            <div class="date">
+                Applied on <?php echo date("F j, Y", strtotime($row['applied_at'])); ?>
+            </div>
 
         </div>
+
+        <?php } ?>
 
     <?php } else { ?>
 
         <div class="empty-box">
-
-            <div class="empty-icon">
-                
-            </div>
-
-            <h3>No Applications Yet</h3>
-
-            <p>
-                You have not applied for any job yet. Browse available jobs and start applying.
-            </p>
-
-            <a href="user_dashboard.php" class="browse-btn">
-                Browse Jobs
-            </a>
-
+            <h3>No applications yet.</h3>
+            <p>Start your journey by applying to jobs that match your skills.</p>
+            <a href="user_dashboard.php" class="btn-primary">Browse Jobs</a>
         </div>
 
     <?php } ?>
 
+</main>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const alertBox = document.getElementById("flashAlert");
+
+    if (alertBox) {
+        setTimeout(function () {
+            alertBox.classList.add("fade-out");
+
+            setTimeout(function () {
+                alertBox.style.display = "none";
+            }, 400);
+
+        }, 5000);
+    }
+});
+</script>
 
 </body>
 </html>

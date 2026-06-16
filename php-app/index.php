@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['name'] ?? "User";
 $user_initial = strtoupper(substr($user_name, 0, 1));
 
@@ -20,308 +21,115 @@ if (isset($_SESSION['selected_job_id'])) {
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AI Job Recommendation Chatbot</title>
-
-    <style>
-        body{
-            margin:0;
-            font-family:'Segoe UI',sans-serif;
-            background:#f4f8ff;
-            color:#1e293b;
-        }
-
-        .topbar{
-            background:white;
-            padding:18px 40px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            box-shadow:0 4px 20px rgba(0,0,0,0.05);
-        }
-
-        .logo{
-            display:flex;
-            align-items:center;
-            gap:15px;
-        }
-
-        .logo-icon{
-            width:55px;
-            height:55px;
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            color:white;
-            border-radius:16px;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            font-size:28px;
-        }
-
-        .logo h2{
-            color:#1e3a8a;
-            margin:0;
-        }
-
-        .nav a{
-            text-decoration:none;
-            padding:11px 18px;
-            border-radius:12px;
-            font-weight:600;
-            margin-left:10px;
-        }
-
-        .nav .jobs{
-            background:#eff6ff;
-            color:#2563eb;
-        }
-
-        .nav .logout{
-            background:#ef4444;
-            color:white;
-        }
-
-        .container{
-            width:90%;
-            max-width:1150px;
-            margin:40px auto;
-            display:grid;
-            grid-template-columns:1.4fr .8fr;
-            gap:25px;
-        }
-
-        .chat-card,
-        .side-card{
-            background:white;
-            border-radius:24px;
-            box-shadow:0 8px 25px rgba(0,0,0,.06);
-            overflow:hidden;
-        }
-
-        .chat-header{
-            background:linear-gradient(135deg,#2563eb,#3b82f6);
-            color:white;
-            padding:28px;
-        }
-
-        .chat-header h1{
-            margin:0 0 8px;
-        }
-
-        .chat-header p{
-            margin:0;
-            color:#dbeafe;
-        }
-
-        .chat-box{
-            height:430px;
-            overflow-y:auto;
-            background:#f8fafc;
-            margin:24px;
-            padding:20px;
-            border-radius:20px;
-            border:1px solid #e2e8f0;
-        }
-
-        .bot-msg,
-        .user-msg{
-            padding:15px 18px;
-            border-radius:18px;
-            margin-bottom:15px;
-            line-height:1.6;
-            max-width:88%;
-        }
-
-        .bot-msg{
-            background:white;
-            border:1px solid #e2e8f0;
-        }
-
-        .user-msg{
-            background:#2563eb;
-            color:white;
-            margin-left:auto;
-        }
-
-        .input-row{
-            display:flex;
-            gap:12px;
-            padding:0 24px 24px;
-        }
-
-        .input-row input{
-            flex:1;
-            padding:14px;
-            border-radius:14px;
-            border:1px solid #cbd5e1;
-        }
-
-        button{
-            border:none;
-            background:linear-gradient(90deg,#2563eb,#3b82f6);
-            color:white;
-            padding:14px 22px;
-            border-radius:14px;
-            font-weight:700;
-            cursor:pointer;
-        }
-
-        .side-card{
-            padding:24px;
-            margin-bottom:25px;
-        }
-
-        .side-card h3{
-            color:#1e3a8a;
-            margin-bottom:10px;
-        }
-
-        .selected-job{
-            border-left:6px solid #2563eb;
-        }
-
-        input[type="file"],
-        .filter-input{
-            width:100%;
-            padding:14px;
-            border-radius:14px;
-            border:1px solid #cbd5e1;
-            margin:10px 0;
-            box-sizing:border-box;
-        }
-
-        .success-alert{
-            background:#dcfce7;
-            color:#166534;
-            padding:16px;
-            border-radius:14px;
-            margin-bottom:20px;
-            border:1px solid #bbf7d0;
-            font-weight:600;
-        }
-
-        #toast{
-            visibility:hidden;
-            position:fixed;
-            right:25px;
-            bottom:25px;
-            background:#0f172a;
-            color:white;
-            padding:14px 20px;
-            border-radius:12px;
-        }
-
-        #toast.show{
-            visibility:visible;
-        }
-
-        @media(max-width:900px){
-            .container{
-                grid-template-columns:1fr;
-            }
-
-            .topbar{
-                flex-direction:column;
-                gap:15px;
-            }
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant | CareerPilot</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body class="app-page">
 
-<div class="topbar">
-    <div class="logo">
-        <div class="logo-icon">🤖</div>
+<div class="app-layout">
+
+<?php include "sidebar.php"; ?>
+
+<main class="app-main">
+<div class="chat-page-main">
+
+<header class="chat-topbar">
+    <div class="chat-topbar-left">
+        <div class="chat-bot-icon">🤖</div>
         <div>
-            <h2>AI Job Recommendation Chatbot</h2>
-            <p>Welcome, <?php echo htmlspecialchars($user_name); ?></p>
+            <div class="chat-bot-name">CareerPilot AI</div>
+            <div class="chat-bot-status">
+                <span class="status-dot"></span> Online Assistant
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="chat-messages" id="chatBox">
+    <div class="chat-date-label">Today</div>
+
+    <div class="msg-bot">
+        <div class="msg-bot-icon">🤖</div>
+        <div class="msg-bot-bubble">
+            Hello! I am your Career Assistant. I can analyze your resume, calculate ATS scores, and suggest matching jobs.
+            <div class="msg-tags">
+                <span class="msg-tag">#ATSScore</span>
+                <span class="msg-tag">#ResumeParsing</span>
+                <span class="msg-tag">#JobMatching</span>
+            </div>
         </div>
     </div>
 
-    <div class="nav">
-        <a href="user_dashboard.php" class="jobs">Available Jobs</a>
-        <a href="my_applications.php" class="jobs">My Applications</a>
-        <a href="logout.php" class="logout">Logout</a>
+    <?php if ($selected_job) { ?>
+        <div class="msg-bot">
+            <div class="msg-bot-icon">🤖</div>
+            <div class="msg-bot-bubble">
+                You are interested in <b><?php echo htmlspecialchars($selected_job['title']); ?></b>
+                at <b><?php echo htmlspecialchars($selected_job['company']); ?></b>.<br>
+                Please upload your resume so I can check your compatibility.
+            </div>
+        </div>
+    <?php } ?>
+
+    <?php
+    $chatHistory = mysqli_query($conn, "
+        SELECT * FROM chat_messages
+        WHERE user_id = '$user_id'
+        ORDER BY message_id ASC
+    ");
+
+    if ($chatHistory) {
+        while ($msg = mysqli_fetch_assoc($chatHistory)) {
+            if ($msg['sender'] == 'user-msg') {
+                echo "
+                <div class='msg-user'>
+                    <div class='msg-user-bubble'>" . $msg['message'] . "</div>
+                    <div class='msg-user-avatar'>$user_initial</div>
+                </div>";
+            } else {
+                echo "
+                <div class='msg-bot'>
+                    <div class='msg-bot-icon'>🤖</div>
+                    <div class='msg-bot-bubble'>" . $msg['message'] . "</div>
+                </div>";
+            }
+        }
+    }
+    ?>
+</div>
+
+<div class="chat-chips">
+    <button class="chip" onclick="quickSend('Check my ATS score')">Check ATS Score</button>
+    <button class="chip" onclick="quickSend('Suggest jobs for me')">Suggest Jobs</button>
+    <button class="chip" onclick="quickSend('Improve my resume')">Resume Tips</button>
+</div>
+
+<div class="chat-input-bar">
+    <div class="chat-input-inner">
+
+        <label class="chat-attach" for="resumeFileInput" title="Upload Resume">📎</label>
+
+        <form id="resumeForm" style="display:none;">
+            <input type="file" id="resumeFileInput" name="resume" accept="application/pdf">
+        </form>
+
+        <input type="text" id="skillsInput" placeholder="Ask anything or enter your skills...">
+
+        <button class="chat-send" id="sendBtn" type="button">➤</button>
+    </div>
+
+    <div class="chat-disclaimer">
+        CareerPilot AI may provide suggestions based on parsed data.
     </div>
 </div>
 
-<div class="container">
-
-    <div>
-
-        <?php if(isset($_SESSION['chat_message'])) { ?>
-            <div class="success-alert">
-                <?php 
-                    echo $_SESSION['chat_message']; 
-                    unset($_SESSION['chat_message']);
-                ?>
-            </div>
-        <?php } ?>
-
-        <div class="chat-card">
-
-            <div class="chat-header">
-                <h1>Career AI Assistant</h1>
-                <p>Upload your resume or enter skills to get recommendations.</p>
-            </div>
-
-            <div class="chat-box" id="chatBox">
-                <div class="bot-msg">
-                    👋 Hello! I can analyze your resume, calculate ATS score, check job match, and suggest better jobs.
-                </div>
-
-                <?php if ($selected_job) { ?>
-                    <div class="bot-msg">
-                        You are applying for <b><?php echo htmlspecialchars($selected_job['title']); ?></b>
-                        at <b><?php echo htmlspecialchars($selected_job['company']); ?></b>.<br>
-                        Please upload your resume to check whether this job is suitable for you.
-                    </div>
-                <?php } ?>
-            </div>
-
-            <div class="input-row">
-                <input type="text" id="skillsInput" placeholder="Example: PHP, MySQL, HTML, CSS">
-                <button id="sendBtn" onclick="sendSkills()">Send</button>
-            </div>
-
-        </div>
-
-    </div>
-
-    <div>
-
-        <?php if ($selected_job) { ?>
-            <div class="side-card selected-job">
-                <h3>Selected Job</h3>
-                <p><b><?php echo htmlspecialchars($selected_job['title']); ?></b></p>
-                <p><?php echo htmlspecialchars($selected_job['company']); ?></p>
-                <p>📍 <?php echo htmlspecialchars($selected_job['location']); ?></p>
-                <p>💰 Rs. <?php echo htmlspecialchars($selected_job['salary']); ?></p>
-                <p><b>Skills:</b> <?php echo htmlspecialchars($selected_job['required_skills']); ?></p>
-            </div>
-        <?php } ?>
-
-        <div class="side-card">
-            <h3>Upload Resume</h3>
-            <p>Upload PDF resume. AI will extract skills and check job suitability.</p>
-
-            <form id="resumeForm" enctype="multipart/form-data">
-                <input type="file" name="resume" accept="application/pdf" required>
-                <button type="submit" id="uploadBtn">Upload Resume</button>
-            </form>
-        </div>
-
-        <div class="side-card">
-            <h3>Job Filters</h3>
-            <input type="text" id="location" class="filter-input" placeholder="Location">
-            <input type="number" id="salary" class="filter-input" placeholder="Minimum Salary">
-            <button onclick="sendSkills()">Apply Filter</button>
-        </div>
-
-    </div>
-
+</div>
+</main>
 </div>
 
 <div id="toast"></div>
@@ -334,60 +142,113 @@ function showToast(msg) {
     setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
-function addMessage(message, type) {
+function saveMessage(message, sender) {
+    fetch("save_chat.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "message=" + encodeURIComponent(message) +
+              "&sender=" + encodeURIComponent(sender)
+    });
+}
+
+function addMessage(message, type, save = true) {
     const chatBox = document.getElementById("chatBox");
     const div = document.createElement("div");
-    div.className = type;
-    div.innerHTML = message;
+
+    if (type === "user-msg") {
+        div.className = "msg-user";
+        div.innerHTML = `
+            <div class="msg-user-bubble">${message}</div>
+            <div class="msg-user-avatar"><?php echo $user_initial; ?></div>
+        `;
+    } else {
+        div.className = "msg-bot";
+        div.innerHTML = `
+            <div class="msg-bot-icon">🤖</div>
+            <div class="msg-bot-bubble">${message}</div>
+        `;
+    }
+
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
+
+    if (save) {
+        saveMessage(message, type);
+    }
+}
+
+function quickSend(text) {
+    document.getElementById("skillsInput").value = text;
+    sendSkills();
 }
 
 function sendSkills() {
-    const skills = document.getElementById("skillsInput").value;
-    const location = document.getElementById("location").value;
-    const salary = document.getElementById("salary").value;
+    const skillsInput = document.getElementById("skillsInput");
+    const skills = skillsInput.value.trim();
 
-    if (skills.trim() === "") {
-        showToast("Please enter your skills.");
+    if (skills === "") {
+        showToast("Please enter a message.");
         return;
     }
 
     addMessage(skills, "user-msg");
+    skillsInput.value = "";
 
     fetch("chat.php", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "skills=" + encodeURIComponent(skills) +
-              "&location=" + encodeURIComponent(location) +
-              "&salary=" + encodeURIComponent(salary)
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "skills=" + encodeURIComponent(skills)
     })
-    .then(response => response.text())
+    .then(res => res.text())
     .then(data => {
         addMessage(data, "bot-msg");
-        document.getElementById("skillsInput").value = "";
     })
-    .catch(() => {
-        addMessage("Something went wrong.", "bot-msg");
+    .catch(err => {
+        console.error(err);
+        addMessage("Sorry, I encountered an error. Please try again.", "bot-msg");
     });
 }
 
-document.getElementById("resumeForm").addEventListener("submit", function(e) {
-    e.preventDefault();
+document.getElementById("sendBtn").addEventListener("click", sendSkills);
 
-    const formData = new FormData(this);
+document.getElementById("skillsInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        sendSkills();
+    }
+});
+
+document.getElementById("resumeFileInput").addEventListener("change", function() {
+
+    if (!this.files || !this.files[0]) {
+        return;
+    }
+
+    const fileInput = this;
+    const fileName = fileInput.files[0].name;
+
+    const formData = new FormData();
+    formData.append("resume", fileInput.files[0]);
+
+    addMessage("📄 " + fileName, "user-msg");
 
     fetch("upload_resume.php", {
         method: "POST",
         body: formData
     })
-    .then(response => response.text())
+    .then(res => res.text())
     .then(data => {
+        addMessage("✅ Resume uploaded successfully", "bot-msg");
         addMessage(data, "bot-msg");
-        this.reset();
+        fileInput.value = "";
     })
-    .catch(() => {
-        addMessage("Resume upload failed.", "bot-msg");
+    .catch(err => {
+        console.error(err);
+        addMessage("❌ Resume upload failed.", "bot-msg");
+        fileInput.value = "";
     });
 });
 </script>

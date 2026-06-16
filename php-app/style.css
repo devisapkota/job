@@ -23,6 +23,7 @@
     --bg2:        #f9fafb;
     --white:      #ffffff;
     --green:      #16a34a;
+    --red:        #dc2626;
     --sidebar-w:  210px;
     --r6:  6px;
     --r8:  8px;
@@ -476,6 +477,44 @@ body.app-page {
 .rcard h4 { font-size: .88rem; font-weight: 600; margin-bottom: 6px; }
 .rcard p  { font-size: .8rem; color: var(--text3); line-height: 1.55; }
 
+/* ============================================================
+   APPLICATION TRACKER
+   ============================================================ */
+.app-card {
+    background: var(--white); border-radius: var(--r16);
+    padding: 24px; box-shadow: var(--s1);
+    margin-bottom: 20px; border: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 20px;
+    transition: transform .2s, box-shadow .2s;
+}
+.app-card:hover { transform: translateY(-2px); box-shadow: var(--s2); }
+
+.app-status {
+    padding: 6px 14px; border-radius: 99px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.status-applied  { background: #eff6ff; color: #1d4ed8; }
+.status-reviewed { background: #fffbeb; color: #92400e; }
+.status-selected { background: #f0fdf4; color: #166534; }
+.status-rejected { background: #fef2f2; color: #991b1b; }
+
+/* Filter Section */
+.filter-section {
+    background: var(--white); padding: 24px;
+    border-radius: var(--r16); margin-bottom: 28px;
+    box-shadow: var(--s1); display: grid;
+    grid-template-columns: 1fr 1fr auto auto;
+    gap: 15px; align-items: end;
+}
+
+@media (max-width: 768px) {
+    .filter-section { grid-template-columns: 1fr; }
+    .app-card { flex-direction: column; }
+    .job-cards-row { grid-template-columns: 1fr; }
+}
+
 /* App footer */
 .app-footer {
     padding: 18px 32px; border-top: 1px solid var(--border);
@@ -734,4 +773,42 @@ body.app-page {
     border:1px solid #bbf7d0;
     font-weight:600;
     box-shadow:0 4px 10px rgba(0,0,0,0.05);
+}
+.alert {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 15px;
+    font-weight: 500;
+    animation: fadeDown 0.3s ease-in-out;
+}
+
+.alert-success {
+    background: #e8f8ef;
+    color: #16794c;
+    border: 1px solid #b8e7cb;
+}
+
+.alert-warning {
+    background: #fff7e6;
+    color: #946200;
+    border: 1px solid #ffe0a3;
+}
+
+.alert-error {
+    background: #fdecec;
+    color: #b42318;
+    border: 1px solid #f5b5b0;
+}
+
+@keyframes fadeDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

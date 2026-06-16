@@ -125,6 +125,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     INSERT INTO applications(user_id, job_id, status)
                                     VALUES('$user_id', '$job_id', 'Applied')
                                 ");
+                                $application_id = mysqli_insert_id($conn);
+                                $admin_name = $_SESSION['name'] ?? "User";
+                                $notif_msg = "New application received for " . $job['title'] . " from " . $admin_name;
+                                mysqli_query($conn, "INSERT INTO admin_notifications (job_id, application_id, user_id, message) VALUES ('$job_id', '$application_id', '$user_id', '$notif_msg')");
                             }
 
                             $_SESSION['chat_message'] = "Job applied successfully. Match Score: $match_score%";

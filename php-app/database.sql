@@ -42,6 +42,18 @@ CREATE TABLE applications (
     application_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     job_id INT,
-    status ENUM('Applied','Reviewed','Selected','Rejected') DEFAULT 'Applied',
+    resume_id INT,
+    match_score INT,
+    status ENUM('Applied','Under Review','Shortlisted','Interview Scheduled','Selected','Rejected') DEFAULT 'Applied',
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE admin_notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    job_id INT NOT NULL,
+    application_id INT NOT NULL,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
