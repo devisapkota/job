@@ -3,7 +3,7 @@ session_start();
 include "db.php";
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: login.php?redirect=job_suggestions.php");
     exit;
 }
 
@@ -102,7 +102,7 @@ if ($has_resume) {
                     <div class="job-cards-row" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
                         <?php if (count($suggestions) > 0): ?>
                             <?php foreach ($suggestions as $job): ?>
-                                <div class="jcard" onclick="location.href='apply_job.php?job_id=<?php echo $job['job_id']; ?>'">
+                                <div class="jcard" onclick="location.href='job_details.php?job_id=<?php echo $job['job_id']; ?>'">
                                     <div class="jcard-top">
                                         <div class="jcard-icon">
                                             <?php if ($job['is_external'] ?? 0): ?>

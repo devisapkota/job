@@ -2,8 +2,11 @@
 session_start();
 include "db.php";
 
+$job_id = isset($_GET['job_id']) ? intval($_GET['job_id']) : 0;
+
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    $redirect_url = "apply_job.php?job_id=" . $job_id;
+    header("Location: login.php?redirect=" . urlencode($redirect_url));
     exit;
 }
 
@@ -12,11 +15,9 @@ if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin') {
     exit;
 }
 
-$job_id = isset($_GET['job_id']) ? intval($_GET['job_id']) : 0;
-
 if ($job_id == 0) {
     $_SESSION['error_message'] = "Invalid job selected.";
-    header("Location: user_dashboard.php");
+    header("Location: index.php");
     exit;
 }
 

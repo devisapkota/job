@@ -165,7 +165,7 @@ if (count($recommendations) > 0) {
                     </div>
                 </div>
                 <div style='margin-top:12px; display:flex; justify-content:flex-end;'>
-                    <a href='apply_suggested_job.php?job_id=" . $r['job_id'] . "&match_score=" . $r['match_score'] . "' style='font-size:13px; font-weight:600; color:#1d4ed8; text-decoration:none;'>View & Apply →</a>
+                    <a href='job_details.php?job_id=" . $r['job_id'] . "' style='font-size:13px; font-weight:600; color:#1d4ed8; text-decoration:none;'>View & Apply →</a>
                 </div>
             </div>
         ";

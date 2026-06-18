@@ -2,38 +2,45 @@
 session_start();
 include "db.php";
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
+$user_id = $_SESSION['user_id'] ?? 0;
 
 if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin') {
     header("Location: admin_dashboard.php");
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
-
 $location = $_GET['location'] ?? '';
 $salary = $_GET['salary'] ?? '';
 
-/* Fetch latest user notifications */
-$notifQuery = mysqli_query($conn, "
-    SELECT * FROM notifications
-    WHERE user_id = '$user_id'
-    ORDER BY created_at DESC
-    LIMIT 5
-");
+$unread_count = 0;
+$notifQuery = null;
 
-$unreadQuery = mysqli_query($conn, "
-    SELECT COUNT(*) AS unread_count
-    FROM notifications
-    WHERE user_id = '$user_id'
-    AND is_read = 0
-");
+if ($user_id > 0) {
+    /* Fetch latest user notifications */
+    $notifQuery = mysqli_query($conn, "
+        SELECT * FROM notifications
+        WHERE user_id = '$user_id'
+        ORDER BY created_at DESC
+        LIMIT 5
+    ");
 
-$unreadData = mysqli_fetch_assoc($unreadQuery);
-$unread_count = $unreadData['unread_count'] ?? 0;
+    $unreadQuery = mysqli_query($conn, "
+        SELECT COUNT(*) AS unread_count
+        FROM notifications
+        WHERE user_id = '$user_id'
+        AND is_read = 0
+    ");
+
+    $unreadData = mysqli_fetch_assoc($unreadQuery);
+    $unread_count = $unreadData['unread_count'] ?? 0;
+
+    /* Mark notifications as read after loading dashboard */
+    mysqli_query($conn, "
+        UPDATE notifications
+        SET is_read = 1
+        WHERE user_id = '$user_id'
+    ");
+}
 
 /* Fetch jobs */
 $query = "SELECT * FROM jobs WHERE is_external = 0";
@@ -52,13 +59,6 @@ $query .= " ORDER BY job_id DESC";
 
 $result = mysqli_query($conn, $query);
 $total_jobs = mysqli_num_rows($result);
-
-/* Mark notifications as read after loading dashboard */
-mysqli_query($conn, "
-    UPDATE notifications
-    SET is_read = 1
-    WHERE user_id = '$user_id'
-");
 ?>
 
 <!DOCTYPE html>
@@ -270,7 +270,7 @@ mysqli_query($conn, "
 
                         <?php while ($job = mysqli_fetch_assoc($result)) { ?>
 
-                            <div class="jcard" onclick="location.href='apply_job.php?job_id=<?php echo $job['job_id']; ?>'">
+                            <div class="jcard" onclick="location.href='job_details.php?job_id=<?php echo $job['job_id']; ?>'">
                                 <div class="jcard-top">
                                     <div class="jcard-icon">
                                         <svg width="18" height="18" fill="none" stroke="#1d4ed8" stroke-width="2" viewBox="0 0 24 24">

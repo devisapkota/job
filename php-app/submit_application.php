@@ -3,7 +3,8 @@ session_start();
 include "db.php";
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    $redirect_url = "submit_application.php?" . $_SERVER['QUERY_STRING'];
+    header("Location: login.php?redirect=" . urlencode($redirect_url));
     exit;
 }
 
