@@ -347,7 +347,7 @@ body {
     <!-- SUCCESS / WARNING / ERROR NOTIFICATION -->
     <?php if (isset($_SESSION['success_message'])) { ?>
         <div class="alert alert-success" id="flashAlert">
-            <div class="alert-icon">✅</div>
+            <div class="alert-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
             <div class="alert-message">
                 <?php echo htmlspecialchars($_SESSION['success_message']); ?>
             </div>
@@ -357,7 +357,7 @@ body {
 
     <?php if (isset($_SESSION['warning_message'])) { ?>
         <div class="alert alert-warning" id="flashAlert">
-            <div class="alert-icon">⚠️</div>
+            <div class="alert-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
             <div class="alert-message">
                 <?php echo htmlspecialchars($_SESSION['warning_message']); ?>
             </div>
@@ -367,7 +367,7 @@ body {
 
     <?php if (isset($_SESSION['error_message'])) { ?>
         <div class="alert alert-error" id="flashAlert">
-            <div class="alert-icon">❌</div>
+            <div class="alert-icon"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
             <div class="alert-message">
                 <?php echo htmlspecialchars($_SESSION['error_message']); ?>
             </div>

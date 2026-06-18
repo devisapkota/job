@@ -87,7 +87,7 @@ if ($has_resume) {
 
                 <?php if (!$has_resume): ?>
                     <div style="text-align:center; padding:60px; background:white; border-radius:var(--r16); border:1px dashed var(--border);">
-                        <div style="font-size:3rem; margin-bottom:20px;">📄</div>
+                        <div style="font-size:3rem; margin-bottom:20px;"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
                         <h3>No Resume Found</h3>
                         <p style="color:var(--text3); margin-bottom:24px;">Please upload your resume in the AI Assistant chat to unlock personalized suggestions.</p>
                         <a href="index.php" class="btn-primary" style="display:inline-flex; width:auto;">Go to AI Assistant</a>
@@ -104,7 +104,13 @@ if ($has_resume) {
                             <?php foreach ($suggestions as $job): ?>
                                 <div class="jcard" onclick="location.href='apply_job.php?job_id=<?php echo $job['job_id']; ?>'">
                                     <div class="jcard-top">
-                                        <div class="jcard-icon"><?php echo ($job['is_external'] ?? 0) ? '🌐' : '💼'; ?></div>
+                                        <div class="jcard-icon">
+                                            <?php if ($job['is_external'] ?? 0): ?>
+                                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                            <?php else: ?>
+                                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                                            <?php endif; ?>
+                                        </div>
                                         <span class="match-badge" style="background:<?php echo $job['match_score'] > 70 ? '#dcfce7' : '#eff6ff'; ?>; color:<?php echo $job['match_score'] > 70 ? '#166534' : '#1d4ed8'; ?>;">
                                             <?php echo $job['match_score']; ?>% Match
                                         </span>
@@ -112,7 +118,7 @@ if ($has_resume) {
                                     <h4><?php echo htmlspecialchars($job['title']); ?></h4>
                                     <div class="jcard-company"><?php echo htmlspecialchars($job['company']); ?></div>
                                     <div style="font-size: 0.8rem; color: var(--text3); margin-bottom: 12px;">
-                                        📍 <?php echo htmlspecialchars($job['location']); ?>
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <?php echo htmlspecialchars($job['location']); ?>
                                     </div>
                                     <div class="jcard-salary">
                                         <span>

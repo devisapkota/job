@@ -40,7 +40,7 @@ if (isset($_SESSION['selected_job_id'])) {
 
 <header class="chat-topbar">
     <div class="chat-topbar-left">
-        <div class="chat-bot-icon">🤖</div>
+        <div class="chat-bot-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
         <div>
             <div class="chat-bot-name">CareerPilot AI</div>
             <div class="chat-bot-status">
@@ -54,7 +54,7 @@ if (isset($_SESSION['selected_job_id'])) {
     <div class="chat-date-label">Today</div>
 
     <div class="msg-bot">
-        <div class="msg-bot-icon">🤖</div>
+        <div class="msg-bot-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
         <div class="msg-bot-bubble">
             Hello! I am your Career Assistant. I can analyze your resume, calculate ATS scores, and suggest matching jobs.
             <div class="msg-tags">
@@ -67,7 +67,7 @@ if (isset($_SESSION['selected_job_id'])) {
 
     <?php if ($selected_job) { ?>
         <div class="msg-bot">
-            <div class="msg-bot-icon">🤖</div>
+            <div class="msg-bot-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
             <div class="msg-bot-bubble">
                 You are interested in <b><?php echo htmlspecialchars($selected_job['title']); ?></b>
                 at <b><?php echo htmlspecialchars($selected_job['company']); ?></b>.<br>
@@ -94,7 +94,7 @@ if (isset($_SESSION['selected_job_id'])) {
             } else {
                 echo "
                 <div class='msg-bot'>
-                    <div class='msg-bot-icon'>🤖</div>
+                    <div class='msg-bot-icon'><svg width='16' height='16' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><rect x='3' y='11' width='18' height='10' rx='2'/><circle cx='12' cy='5' r='2'/><path d='M12 7v4'/><line x1='8' y1='16' x2='8' y2='16'/><line x1='16' y1='16' x2='16' y2='16'/></svg></div>
                     <div class='msg-bot-bubble'>" . $msg['message'] . "</div>
                 </div>";
             }
@@ -112,7 +112,7 @@ if (isset($_SESSION['selected_job_id'])) {
 <div class="chat-input-bar">
     <div class="chat-input-inner">
 
-        <label class="chat-attach" for="resumeFileInput" title="Upload Resume">📎</label>
+        <label class="chat-attach" for="resumeFileInput" title="Upload Resume"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></label>
 
         <form id="resumeForm" style="display:none;">
             <input type="file" id="resumeFileInput" name="resume" accept="application/pdf">
@@ -120,7 +120,7 @@ if (isset($_SESSION['selected_job_id'])) {
 
         <input type="text" id="skillsInput" placeholder="Ask anything or enter your skills...">
 
-        <button class="chat-send" id="sendBtn" type="button">➤</button>
+        <button class="chat-send" id="sendBtn" type="button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
 
     <div class="chat-disclaimer">
@@ -166,7 +166,7 @@ function addMessage(message, type, save = true) {
     } else {
         div.className = "msg-bot";
         div.innerHTML = `
-            <div class="msg-bot-icon">🤖</div>
+            <div class="msg-bot-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></div>
             <div class="msg-bot-bubble">${message}</div>
         `;
     }
@@ -233,7 +233,7 @@ document.getElementById("resumeFileInput").addEventListener("change", function()
     const formData = new FormData();
     formData.append("resume", fileInput.files[0]);
 
-    addMessage("📄 " + fileName, "user-msg");
+    addMessage("<svg width=\'16\' height=\'16\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' viewBox=\'0 0 24 24\' style=\'vertical-align:middle;margin-right:4px;\'><path d=\'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\'/><polyline points=\'14 2 14 8 20 8\'/></svg> " + fileName, "user-msg");
 
     fetch("upload_resume.php", {
         method: "POST",
@@ -241,13 +241,13 @@ document.getElementById("resumeFileInput").addEventListener("change", function()
     })
     .then(res => res.text())
     .then(data => {
-        addMessage("✅ Resume uploaded successfully", "bot-msg");
+        addMessage("<svg width=\'16\' height=\'16\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\' style=\'vertical-align:middle;margin-right:4px;\'><polyline points=\'20 6 9 17 4 12\'/></svg> Resume uploaded successfully", "bot-msg");
         addMessage(data, "bot-msg");
         fileInput.value = "";
     })
     .catch(err => {
         console.error(err);
-        addMessage("❌ Resume upload failed.", "bot-msg");
+        addMessage("<svg width=\'16\' height=\'16\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\' style=\'vertical-align:middle;margin-right:4px;\'><line x1=\'18\' y1=\'6\' x2=\'6\' y2=\'18\'/><line x1=\'6\' y1=\'6\' x2=\'18\' y2=\'18\'/></svg> Resume upload failed.", "bot-msg");
         fileInput.value = "";
     });
 });

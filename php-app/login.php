@@ -80,9 +80,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
             </div>
 
-            <div class="check-row">
-                <input type="checkbox" id="remember" name="remember">
-            </div>
+            
 
             <button type="submit" class="btn-primary" id="loginBtn">
                 Sign In
