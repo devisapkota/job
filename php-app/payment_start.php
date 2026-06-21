@@ -1,9 +1,9 @@
 <?php
 session_start();
-include "db.php";
+require_once "db.php";
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: login.php?redirect=pro_features.php");
     exit;
 }
 
@@ -16,12 +16,21 @@ if (!in_array($purpose, ['job_apply', 'chatbot_access'])) {
     die("Invalid payment purpose.");
 }
 
+/* Amount and validation */
 if ($purpose == 'job_apply') {
+
     if (!$job_id) {
-        die("Invalid job.");
+        $_SESSION['error_message'] = "Please select an external job before making payment.";
+        header("Location: pro_features.php");
+        exit;
     }
 
-    $jobQuery = mysqli_query($conn, "SELECT * FROM jobs WHERE job_id = '$job_id' LIMIT 1");
+    $jobQuery = mysqli_query($conn, "
+        SELECT *
+        FROM jobs
+        WHERE job_id = '$job_id'
+        LIMIT 1
+    ");
 
     if (!$jobQuery || mysqli_num_rows($jobQuery) == 0) {
         die("Job not found.");
@@ -29,13 +38,29 @@ if ($purpose == 'job_apply') {
 
     $job = mysqli_fetch_assoc($jobQuery);
 
-    if ($job['is_external'] != 1) {
+    if (intval($job['is_external']) != 1) {
         header("Location: apply_job.php?job_id=" . $job_id);
         exit;
     }
 
     $amount = ESEWA_TEST_MODE ? 1 : EXTERNAL_JOB_APPLY_FEE;
+
 } else {
+
+    $paidCheck = mysqli_query($conn, "
+        SELECT *
+        FROM chatbot_access
+        WHERE user_id = '$user_id'
+        AND is_paid = 1
+        LIMIT 1
+    ");
+
+    if ($paidCheck && mysqli_num_rows($paidCheck) > 0) {
+        $_SESSION['success_message'] = "You already have chatbot pro access.";
+        header("Location: pro_features.php");
+        exit;
+    }
+
     $amount = ESEWA_TEST_MODE ? 1 : CHATBOT_ACCESS_FEE;
 }
 
@@ -72,69 +97,76 @@ $local_success_url = "payment_success.php?transaction_uuid=" . urlencode($transa
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment | CareerPilot AI</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f8fafc;
-            color: #0f172a;
-        }
+<meta charset="UTF-8">
+<title>Payment | CareerPilot AI</title>
 
-        .payment-box {
-            max-width: 500px;
-            margin: 70px auto;
-            background: white;
-            padding: 35px;
-            border-radius: 18px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-            text-align: center;
-        }
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f8fafc;
+    color: #0f172a;
+}
 
-        h2 {
-            color: #1d4ed8;
-            margin-bottom: 10px;
-        }
+.payment-box {
+    max-width: 500px;
+    margin: 70px auto;
+    background: white;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    text-align: center;
+}
 
-        .amount {
-            font-size: 30px;
-            font-weight: 800;
-            color: #111827;
-            margin: 20px 0;
-        }
+h2 {
+    color: #1d4ed8;
+    margin-bottom: 10px;
+}
 
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-top: 14px;
-        }
+.amount {
+    font-size: 34px;
+    font-weight: 800;
+    color: #111827;
+    margin: 22px 0;
+}
 
-        .esewa-btn {
-            background: #60bb46;
-            color: white;
-        }
+.btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    margin-top: 14px;
+}
 
-        .test-btn {
-            background: #2563eb;
-            color: white;
-        }
+.esewa-btn {
+    background: #60bb46;
+    color: white;
+}
 
-        .note {
-            color: #64748b;
-            font-size: 14px;
-            margin-top: 18px;
-            line-height: 1.5;
-        }
-    </style>
+.test-btn {
+    background: #2563eb;
+    color: white;
+}
+
+.back-btn {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.note {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 18px;
+    line-height: 1.5;
+}
+</style>
 </head>
+
 <body>
 
 <div class="payment-box">
@@ -143,7 +175,7 @@ $local_success_url = "payment_success.php?transaction_uuid=" . urlencode($transa
     <?php if ($purpose == 'job_apply') { ?>
         <p>You need to pay to apply for this external job.</p>
     <?php } else { ?>
-        <p>You have used your 5 free chatbot messages. Please pay to continue chatting.</p>
+        <p>Unlock CareerPilot AI chatbot after 5 free messages.</p>
     <?php } ?>
 
     <div class="amount">NPR <?php echo htmlspecialchars($amount); ?></div>
@@ -168,8 +200,12 @@ $local_success_url = "payment_success.php?transaction_uuid=" . urlencode($transa
         Simulate Successful Payment
     </a>
 
+    <a href="pro_features.php" class="btn back-btn">
+        Back to Pro Features
+    </a>
+
     <div class="note">
-        For localhost demo, you can use Simulate Successful Payment.
+        For localhost demo, use Simulate Successful Payment.
     </div>
 </div>
 
