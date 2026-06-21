@@ -38,13 +38,6 @@ $paidQuery = mysqli_query($conn, "
 
 $hasPaidAccess = ($paidQuery && mysqli_num_rows($paidQuery) > 0);
 
-/*
-Important:
-First 5 user messages are free.
-From 6th message onwards, payment is required.
-Payment is handled from Pro Features page.
-*/
-
 if ($totalUserMessages >= 5 && !$hasPaidAccess) {
     echo "
     <div style='background:#fff7ed;color:#9a3412;padding:18px;border-radius:14px;border:1px solid #fed7aa;'>
@@ -269,13 +262,19 @@ if (!$recommendations || count($recommendations) == 0) {
     exit;
 }
 
-$reply = "<h3>Recommended Jobs</h3>";
+/* =====================================================
+   SHOW ONLY RELEVANT JOBS
+   Minimum match score required = 25%
+   ===================================================== */
 
+$reply = "<h3>Recommended Jobs</h3>";
 $hasRecommendation = false;
 
 foreach ($recommendations as $job) {
 
-    if (!isset($job['match_score']) || $job['match_score'] <= 0) {
+    $raw_match_score = isset($job['match_score']) ? floatval($job['match_score']) : 0;
+
+    if ($raw_match_score < 25) {
         continue;
     }
 
@@ -286,22 +285,22 @@ foreach ($recommendations as $job) {
         : "";
 
     $job_id = intval($job['job_id']);
-    $match_score = htmlspecialchars($job['match_score']);
+    $match_score = number_format($raw_match_score, 2);
 
     $reply .= "
     <div style='background:white;border:1px solid #e2e8f0;padding:15px;border-radius:12px;margin:12px 0;'>
         <b>" . htmlspecialchars($job['title']) . "</b><br>
         Company: " . htmlspecialchars($job['company']) . "<br>
         Location: " . htmlspecialchars($job['location']) . "<br>
-        Match Score: " . $match_score . "%<br>
+        Match Score: " . htmlspecialchars($match_score) . "%<br>
         Missing Skills: " . htmlspecialchars($missing ?: "No major missing skills") . "<br><br>
 
-        <a href='job_details.php?job_id=" . $job_id . "' 
+        <a href='job_details.php?job_id=" . $job_id . "&match_score=" . urlencode($match_score) . "' 
            style='background:#0f172a;color:white;padding:9px 13px;border-radius:8px;text-decoration:none;font-weight:600;margin-right:8px;'>
             View Details
         </a>
 
-        <a href='apply_suggested_job.php?job_id=" . $job_id . "&match_score=" . $match_score . "' 
+        <a href='apply_job.php?job_id=" . $job_id . "&match_score=" . urlencode($match_score) . "' 
            style='background:#2563eb;color:white;padding:9px 13px;border-radius:8px;text-decoration:none;font-weight:600;'>
             Apply Now
         </a>
@@ -311,7 +310,8 @@ foreach ($recommendations as $job) {
 if (!$hasRecommendation) {
     $reply = "
     <div style='background:#fff7ed;color:#9a3412;padding:15px;border-radius:12px;'>
-        Sorry, no matching jobs found.
+        Sorry, no suitable jobs found with at least 25% match score.<br>
+        Please improve your resume skills or try different technical skills.
     </div>";
 }
 
