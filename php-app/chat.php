@@ -38,12 +38,17 @@ $paidQuery = mysqli_query($conn, "
 
 $hasPaidAccess = ($paidQuery && mysqli_num_rows($paidQuery) > 0);
 
+/*
+First 5 user messages are free.
+From the 6th message onwards, payment is required.
+*/
+
 if ($totalUserMessages >= 5 && !$hasPaidAccess) {
     echo "
     <div style='background:#fff7ed;color:#9a3412;padding:18px;border-radius:14px;border:1px solid #fed7aa;'>
-        <h3 style='margin-top:0;'>Chatbot Limit Reached</h3>
-        <p>You have used your 5 free CareerPilot AI messages.</p>
-        <p>Please unlock Chatbot Pro Access from Pro Features to continue chatting.</p>
+        <h3 style='margin-top:0;'>Chatbot Free Limit Reached</h3>
+        <p>You have already used your 5 free CareerPilot AI messages.</p>
+        <p>Please unlock Chatbot Pro Access to continue chatting.</p>
 
         <a href='pro_features.php' 
            style='display:inline-block;background:#2563eb;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;margin-top:10px;'>
@@ -69,10 +74,10 @@ if ($message != "") {
 }
 
 /* =====================================================
-   QUICK BUTTON RESPONSES
+   QUICK BUTTON RESPONSE: CHECK ATS SCORE
    ===================================================== */
 
-if ($message_lower == "check ats score") {
+if ($message_lower == "check ats score" || $message_lower == "check my ats score") {
 
     $query = "
         SELECT 
@@ -102,18 +107,26 @@ if ($message_lower == "check ats score") {
 
     $row = mysqli_fetch_assoc($result);
 
+    $atsScore = $row['ats_score'] ?? 'Not available';
+    $extractedSkills = $row['extracted_skills'] ?? 'Not available';
+    $suggestions = $row['suggestions'] ?? 'No suggestions available';
+
     $reply = "
     <div style='background:white;border:1px solid #e2e8f0;padding:15px;border-radius:12px;'>
         <h3>ATS Resume Analysis</h3>
-        <b>ATS Score:</b> " . htmlspecialchars($row['ats_score'] ?? 'Not available') . "/100<br>
-        <b>Extracted Skills:</b> " . htmlspecialchars($row['extracted_skills'] ?? 'Not available') . "<br>
-        <b>Suggestions:</b> " . htmlspecialchars($row['suggestions'] ?? 'No suggestions available') . "
+        <b>ATS Score:</b> " . htmlspecialchars($atsScore) . "/100<br>
+        <b>Extracted Skills:</b> " . htmlspecialchars($extractedSkills) . "<br>
+        <b>Suggestions:</b> " . htmlspecialchars($suggestions) . "
     </div>";
 
     saveBotMessage($conn, $user_id, $reply);
     echo $reply;
     exit;
 }
+
+/* =====================================================
+   QUICK BUTTON RESPONSE: RESUME TIPS
+   ===================================================== */
 
 if ($message_lower == "resume tips" || $message_lower == "improve my resume") {
 
@@ -134,6 +147,10 @@ if ($message_lower == "resume tips" || $message_lower == "improve my resume") {
     echo $reply;
     exit;
 }
+
+/* =====================================================
+   QUICK BUTTON RESPONSE: SUGGEST JOBS
+   ===================================================== */
 
 if ($message_lower == "suggest jobs" || $message_lower == "suggest jobs for me") {
 
@@ -197,7 +214,7 @@ if ($message == "" || !$valid_skill_found) {
 }
 
 /* =====================================================
-   JOB RECOMMENDATION
+   FETCH JOBS
    ===================================================== */
 
 $jobs = [];
@@ -221,6 +238,10 @@ if (count($jobs) == 0) {
     echo $reply;
     exit;
 }
+
+/* =====================================================
+   SEND DATA TO FLASK AI SERVER
+   ===================================================== */
 
 $data = [
     "user_id" => $user_id,
@@ -263,8 +284,7 @@ if (!$recommendations || count($recommendations) == 0) {
 }
 
 /* =====================================================
-   SHOW ONLY RELEVANT JOBS
-   Minimum match score required = 25%
+   DISPLAY ONLY JOBS WITH 25% OR ABOVE MATCH SCORE
    ===================================================== */
 
 $reply = "<h3>Recommended Jobs</h3>";
@@ -287,11 +307,15 @@ foreach ($recommendations as $job) {
     $job_id = intval($job['job_id']);
     $match_score = number_format($raw_match_score, 2);
 
+    $title = htmlspecialchars($job['title'] ?? 'Untitled Job');
+    $company = htmlspecialchars($job['company'] ?? 'Not specified');
+    $location = htmlspecialchars($job['location'] ?? 'Not specified');
+
     $reply .= "
     <div style='background:white;border:1px solid #e2e8f0;padding:15px;border-radius:12px;margin:12px 0;'>
-        <b>" . htmlspecialchars($job['title']) . "</b><br>
-        Company: " . htmlspecialchars($job['company']) . "<br>
-        Location: " . htmlspecialchars($job['location']) . "<br>
+        <b>" . $title . "</b><br>
+        Company: " . $company . "<br>
+        Location: " . $location . "<br>
         Match Score: " . htmlspecialchars($match_score) . "%<br>
         Missing Skills: " . htmlspecialchars($missing ?: "No major missing skills") . "<br><br>
 

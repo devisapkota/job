@@ -3,13 +3,13 @@ session_start();
 require_once "db.php";
 
 $job_id = isset($_GET['job_id']) ? intval($_GET['job_id']) : 0;
-$match_score = isset($_GET['match_score']) ? floatval($_GET['match_score']) : null;
+$url_match_score = isset($_GET['match_score']) && $_GET['match_score'] !== '' ? floatval($_GET['match_score']) : null;
 
 if (!isset($_SESSION['user_id'])) {
     $redirect_url = "apply_job.php?job_id=" . $job_id;
 
-    if ($match_score !== null) {
-        $redirect_url .= "&match_score=" . urlencode($match_score);
+    if ($url_match_score !== null) {
+        $redirect_url .= "&match_score=" . urlencode($url_match_score);
     }
 
     header("Location: login.php?redirect=" . urlencode($redirect_url));
@@ -29,24 +29,12 @@ if ($job_id <= 0) {
     exit;
 }
 
-/* Match score below 25 cannot apply */
-if ($match_score !== null && $match_score < 25) {
-    $_SESSION['error_message'] = "You cannot apply for this job because your match score is below 25%. Please improve your resume skills first.";
-    header("Location: job_details.php?job_id=" . $job_id . "&match_score=" . urlencode($match_score));
-    exit;
-}
+/* =====================================================
+   FETCH SELECTED JOB
+   ===================================================== */
 
-/* Fetch selected job */
 $stmt = $conn->prepare("
-    SELECT 
-        job_id,
-        title,
-        company,
-        description,
-        required_skills,
-        location,
-        salary,
-        is_external
+    SELECT *
     FROM jobs
     WHERE job_id = ?
     LIMIT 1
@@ -54,17 +42,129 @@ $stmt = $conn->prepare("
 
 $stmt->bind_param("i", $job_id);
 $stmt->execute();
-$result = $stmt->get_result();
+$jobResult = $stmt->get_result();
 
-if ($result->num_rows == 0) {
+if ($jobResult->num_rows == 0) {
     $_SESSION['error_message'] = "The selected job was not found.";
     header("Location: index.php");
     exit;
 }
 
-$job = $result->fetch_assoc();
+$job = $jobResult->fetch_assoc();
 
-/* Duplicate application check */
+/* =====================================================
+   CHECK IF USER HAS UPLOADED RESUME
+   ===================================================== */
+
+$resumeStmt = $conn->prepare("
+    SELECT resume_id, extracted_skills
+    FROM resumes
+    WHERE user_id = ?
+    ORDER BY resume_id DESC
+    LIMIT 1
+");
+
+$resumeStmt->bind_param("i", $user_id);
+$resumeStmt->execute();
+$resumeResult = $resumeStmt->get_result();
+
+if ($resumeResult->num_rows == 0) {
+
+    $_SESSION['selected_job_id'] = $job_id;
+
+    $_SESSION['chat_message'] = "
+        You selected " . $job['title'] . " at " . $job['company'] . ".
+        Please upload your resume first. After uploading, CareerPilot AI will check your ATS score and match score.
+        If your match score is below 25%, you cannot apply for this job.
+    ";
+
+    $_SESSION['error_message'] = "Please upload your resume first before applying for this job.";
+
+    header("Location: index.php#chatBox");
+    exit;
+}
+
+$resume = $resumeResult->fetch_assoc();
+$resume_id = intval($resume['resume_id']);
+$extracted_skills = strtolower($resume['extracted_skills'] ?? '');
+
+/* =====================================================
+   HELPER FUNCTION TO CLEAN SKILLS
+   ===================================================== */
+
+function cleanSkills($skillsText) {
+    $skillsText = strtolower($skillsText ?? '');
+
+    $skills = preg_split('/[,|\/\n\r]+/', $skillsText);
+    $clean = [];
+
+    foreach ($skills as $skill) {
+        $skill = trim($skill);
+
+        if ($skill !== '') {
+            $clean[] = $skill;
+        }
+    }
+
+    return array_unique($clean);
+}
+
+/* =====================================================
+   CALCULATE MATCH SCORE
+   Formula:
+   Matching Skills / Required Skills * 100
+   ===================================================== */
+
+if ($url_match_score !== null) {
+    $match_score = $url_match_score;
+} else {
+    $user_skills = cleanSkills($extracted_skills);
+    $required_skills = cleanSkills($job['required_skills'] ?? '');
+
+    $matched_count = 0;
+
+    foreach ($required_skills as $requiredSkill) {
+        foreach ($user_skills as $userSkill) {
+            if ($requiredSkill === $userSkill) {
+                $matched_count++;
+                break;
+            }
+        }
+    }
+
+    if (count($required_skills) > 0) {
+        $match_score = round(($matched_count / count($required_skills)) * 100, 2);
+    } else {
+        $match_score = 0;
+    }
+
+    /* Small title bonus, same as suggestions page */
+    foreach ($user_skills as $skill) {
+        if ($skill !== '' && strpos(strtolower($job['title']), $skill) !== false) {
+            $match_score += 15;
+        }
+    }
+
+    if ($match_score > 100) {
+        $match_score = 100;
+    }
+}
+
+/* =====================================================
+   BLOCK APPLY IF MATCH SCORE BELOW 25%
+   ===================================================== */
+
+if ($match_score < 25) {
+    $_SESSION['error_message'] = "You cannot apply for this job because your match score is below 25%. Please improve your resume skills first.";
+
+    header("Location: job_details.php?job_id=" . $job_id . "&match_score=" . urlencode($match_score));
+    exit;
+}
+
+/* =====================================================
+   CHECK DUPLICATE APPLICATION
+   ===================================================== */
+
 $checkApplication = $conn->prepare("
     SELECT application_id
     FROM applications
@@ -83,8 +183,11 @@ if ($applicationResult->num_rows > 0) {
     exit;
 }
 
-/* Payment check for external scraped jobs */
-if (intval($job['is_external']) == 1) {
+/* =====================================================
+   PAYMENT CHECK FOR EXTERNAL / SCRAPED JOBS
+   ===================================================== */
+
+if (intval($job['is_external'] ?? 0) == 1) {
 
     $paymentCheck = $conn->prepare("
         SELECT payment_id
@@ -106,12 +209,24 @@ if (intval($job['is_external']) == 1) {
     }
 }
 
-/* Store selected job for resume upload/application process */
+/* =====================================================
+   STORE SELECTED JOB FOR FINAL APPLICATION FLOW
+   ===================================================== */
+
 $_SESSION['selected_job_id'] = $job_id;
-$_SESSION['selected_match_score'] = $match_score ?? 0;
+$_SESSION['selected_resume_id'] = $resume_id;
+$_SESSION['selected_match_score'] = $match_score;
 
-$_SESSION['chat_message'] = "Please upload your resume to apply for " . $job['title'] . " at " . $job['company'] . ".";
+$_SESSION['chat_message'] = "
+    Your resume match score for " . $job['title'] . " at " . $job['company'] . " is " . $match_score . "%.
+    You are eligible to apply because your score is 25% or above.
+";
 
-header("Location: index.php");
+/*
+If your actual application is inserted from upload_resume.php or index.php chatbot flow,
+keep redirecting to index.php.
+*/
+
+header("Location: index.php#chatBox");
 exit;
 ?>

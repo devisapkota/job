@@ -25,7 +25,8 @@ if (!defined('ESEWA_PAYMENT_URL')) {
 
 /*
 Change this only if your folder path is different.
-Your current path seems:
+
+Example:
 http://localhost/job-chatbot/php-app
 */
 
@@ -33,21 +34,44 @@ if (!defined('BASE_URL')) {
     define('BASE_URL', 'http://localhost/job-chatbot/php-app');
 }
 
+/* ==============================
+   Payment Amount Configuration
+   ============================== */
+
 /*
-Payment amounts.
-Because ESEWA_TEST_MODE is true, payment amount will be Rs. 1 for demo.
+Chatbot Pro Access Price:
+User gets 5 free chatbot messages.
+After that, user pays Rs. 500 to continue using chatbot.
+*/
+
+if (!defined('CHATBOT_ACCESS_FEE')) {
+    define('CHATBOT_ACCESS_FEE', 500);
+}
+
+/*
+External / Scraped Job Apply Price:
+When user applies for scraped/external job, user pays Rs. 650.
 */
 
 if (!defined('EXTERNAL_JOB_APPLY_FEE')) {
-    define('EXTERNAL_JOB_APPLY_FEE', 50);
+    define('EXTERNAL_JOB_APPLY_FEE', 650);
 }
 
-if (!defined('CHATBOT_ACCESS_FEE')) {
-    define('CHATBOT_ACCESS_FEE', 100);
-}
+/*
+IMPORTANT:
+
+true  = demo/test mode, payment amount becomes Rs. 1
+false = real configured amount is used
+
+Since you want:
+Chatbot = Rs. 500
+Scraped Job Apply = Rs. 650
+
+Keep this false.
+*/
 
 if (!defined('ESEWA_TEST_MODE')) {
-    define('ESEWA_TEST_MODE', true);
+    define('ESEWA_TEST_MODE', false);
 }
 
 /* ==============================

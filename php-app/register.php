@@ -1,176 +1,271 @@
 <?php
 session_start();
-include "db.php";
+require_once "db.php";
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
+$error = "";
+$success = "";
 
-$user_id = intval($_SESSION['user_id']);
-
-$purpose = $_GET['purpose'] ?? '';
-$job_id = isset($_GET['job_id']) ? intval($_GET['job_id']) : null;
-
-if (!in_array($purpose, ['job_apply', 'chatbot_access'])) {
-    die("Invalid payment purpose.");
-}
-
-if ($purpose == 'job_apply') {
-    if (!$job_id) {
-        die("Invalid job.");
-    }
-
-    $jobQuery = mysqli_query($conn, "SELECT * FROM jobs WHERE job_id = '$job_id' LIMIT 1");
-
-    if (!$jobQuery || mysqli_num_rows($jobQuery) == 0) {
-        die("Job not found.");
-    }
-
-    $job = mysqli_fetch_assoc($jobQuery);
-
-    if ($job['is_external'] != 1) {
-        header("Location: apply_job.php?job_id=" . $job_id);
+/* If already logged in, redirect based on role */
+if (isset($_SESSION['user_id'])) {
+    if (isset($_SESSION['role']) && $_SESSION['role'] == 'admin') {
+        header("Location: admin_dashboard.php");
+        exit;
+    } else {
+        header("Location: index.php");
         exit;
     }
-
-    $amount = ESEWA_TEST_MODE ? 1 : EXTERNAL_JOB_APPLY_FEE;
-} else {
-    $amount = ESEWA_TEST_MODE ? 1 : CHATBOT_ACCESS_FEE;
 }
 
-$amount = number_format((float)$amount, 2, '.', '');
-$taxAmount = "0";
-$serviceCharge = "0";
-$deliveryCharge = "0";
-$totalAmount = $amount;
+/* Handle registration form */
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-$transaction_uuid = "CPAI" . $user_id . time();
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = trim($_POST['password'] ?? '');
+    $confirm_password = trim($_POST['confirm_password'] ?? '');
 
-$safe_purpose = mysqli_real_escape_string($conn, $purpose);
-$safe_transaction_uuid = mysqli_real_escape_string($conn, $transaction_uuid);
+    if ($name == "" || $email == "" || $password == "" || $confirm_password == "") {
+        $error = "All fields are required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address.";
+    } elseif (strlen($password) < 6) {
+        $error = "Password must be at least 6 characters long.";
+    } elseif ($password !== $confirm_password) {
+        $error = "Password and confirm password do not match.";
+    } else {
 
-$insertPayment = mysqli_query($conn, "
-    INSERT INTO payments 
-    (user_id, job_id, purpose, amount, transaction_uuid, payment_status)
-    VALUES 
-    ('$user_id', " . ($job_id ? "'$job_id'" : "NULL") . ", '$safe_purpose', '$amount', '$safe_transaction_uuid', 'Pending')
-");
+        /* Check duplicate email */
+        $checkStmt = $conn->prepare("
+            SELECT user_id 
+            FROM users 
+            WHERE email = ? 
+            LIMIT 1
+        ");
 
-if (!$insertPayment) {
-    die("Payment creation failed: " . mysqli_error($conn));
+        $checkStmt->bind_param("s", $email);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+
+        if ($checkResult->num_rows > 0) {
+            $error = "This email is already registered. Please login instead.";
+        } else {
+
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $role = "user";
+
+            $insertStmt = $conn->prepare("
+                INSERT INTO users 
+                (name, email, password, role)
+                VALUES 
+                (?, ?, ?, ?)
+            ");
+
+            $insertStmt->bind_param("ssss", $name, $email, $hashed_password, $role);
+
+            if ($insertStmt->execute()) {
+                $_SESSION['success_message'] = "Registration successful. Please login to continue.";
+                header("Location: login.php");
+                exit;
+            } else {
+                $error = "Registration failed. Please try again.";
+            }
+        }
+    }
 }
-
-$signature = generateEsewaSignature($totalAmount, $transaction_uuid);
-
-$success_url = BASE_URL . "/payment_success.php";
-$failure_url = BASE_URL . "/payment_failure.php?transaction_uuid=" . urlencode($transaction_uuid);
-
-$local_success_url = "payment_success.php?transaction_uuid=" . urlencode($transaction_uuid) . "&local_test=1";
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment | CareerPilot AI</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f8fafc;
-            color: #0f172a;
-        }
+<meta charset="UTF-8">
+<title>Register | CareerPilot AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        .payment-box {
-            max-width: 500px;
-            margin: 70px auto;
-            background: white;
-            padding: 35px;
-            border-radius: 18px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-            text-align: center;
-        }
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-        h2 {
-            color: #1d4ed8;
-            margin-bottom: 10px;
-        }
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #eff6ff, #f8fafc);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
 
-        .amount {
-            font-size: 30px;
-            font-weight: 800;
-            color: #111827;
-            margin: 20px 0;
-        }
+.auth-box {
+    width: 100%;
+    max-width: 460px;
+    background: white;
+    border-radius: 24px;
+    padding: 36px;
+    box-shadow: 0 15px 40px rgba(15, 23, 42, 0.10);
+    border: 1px solid #e5e7eb;
+}
 
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 16px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-top: 14px;
-        }
+.brand {
+    text-align: center;
+    margin-bottom: 28px;
+}
 
-        .esewa-btn {
-            background: #60bb46;
-            color: white;
-        }
+.brand-icon {
+    width: 58px;
+    height: 58px;
+    background: #2563eb;
+    color: white;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 14px;
+}
 
-        .test-btn {
-            background: #2563eb;
-            color: white;
-        }
+.brand h1 {
+    color: #1d4ed8;
+    font-size: 30px;
+    margin-bottom: 6px;
+}
 
-        .note {
-            color: #64748b;
-            font-size: 14px;
-            margin-top: 18px;
-            line-height: 1.5;
-        }
-    </style>
+.brand p {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 700;
+    color: #334155;
+    font-size: 14px;
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+}
+
+input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.btn {
+    width: 100%;
+    background: #2563eb;
+    color: white;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.btn:hover {
+    background: #1d4ed8;
+}
+
+.alert {
+    padding: 13px 15px;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.auth-link {
+    text-align: center;
+    margin-top: 22px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.auth-link a {
+    color: #2563eb;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.auth-link a:hover {
+    text-decoration: underline;
+}
+</style>
 </head>
+
 <body>
 
-<div class="payment-box">
-    <h2>CareerPilot AI Payment</h2>
+<div class="auth-box">
 
-    <?php if ($purpose == 'job_apply') { ?>
-        <p>You need to pay to apply for this external job.</p>
-    <?php } else { ?>
-        <p>You have used your 5 free chatbot messages. Please pay to continue chatting.</p>
+    <div class="brand">
+        <div class="brand-icon">🤖</div>
+        <h1>CareerPilot AI</h1>
+        <p>Create your account to access AI job recommendations.</p>
+    </div>
+
+    <?php if ($error != "") { ?>
+        <div class="alert alert-error">
+            <?php echo htmlspecialchars($error); ?>
+        </div>
     <?php } ?>
 
-    <div class="amount">NPR <?php echo htmlspecialchars($amount); ?></div>
+    <form method="POST" action="register.php">
 
-    <form action="<?php echo ESEWA_PAYMENT_URL; ?>" method="POST">
-        <input type="hidden" name="amount" value="<?php echo htmlspecialchars($amount); ?>">
-        <input type="hidden" name="tax_amount" value="<?php echo htmlspecialchars($taxAmount); ?>">
-        <input type="hidden" name="total_amount" value="<?php echo htmlspecialchars($totalAmount); ?>">
-        <input type="hidden" name="transaction_uuid" value="<?php echo htmlspecialchars($transaction_uuid); ?>">
-        <input type="hidden" name="product_code" value="<?php echo htmlspecialchars(ESEWA_PRODUCT_CODE); ?>">
-        <input type="hidden" name="product_service_charge" value="<?php echo htmlspecialchars($serviceCharge); ?>">
-        <input type="hidden" name="product_delivery_charge" value="<?php echo htmlspecialchars($deliveryCharge); ?>">
-        <input type="hidden" name="success_url" value="<?php echo htmlspecialchars($success_url); ?>">
-        <input type="hidden" name="failure_url" value="<?php echo htmlspecialchars($failure_url); ?>">
-        <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
-        <input type="hidden" name="signature" value="<?php echo htmlspecialchars($signature); ?>">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" name="name" placeholder="Enter your full name" required>
+        </div>
 
-        <button type="submit" class="btn esewa-btn">Pay with eSewa Sandbox</button>
+        <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" name="email" placeholder="Enter your email address" required>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Create password" required>
+        </div>
+
+        <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" name="confirm_password" placeholder="Confirm password" required>
+        </div>
+
+        <button type="submit" class="btn">Register</button>
+
     </form>
 
-    <a href="<?php echo htmlspecialchars($local_success_url); ?>" class="btn test-btn">
-        Simulate Successful Payment
-    </a>
-
-    <div class="note">
-        For localhost demo, you can use Simulate Successful Payment.
+    <div class="auth-link">
+        Already have an account?
+        <a href="login.php">Login here</a>
     </div>
+
 </div>
 
 </body>
